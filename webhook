@@ -1,0 +1,110 @@
+-- 📣 Discord Webhook: Beri tracker (Client/Executor)
+
+local Players = game:GetService('Players')
+local HttpService = game:GetService('HttpService')
+local plr = Players.LocalPlayer
+
+-- 🔗 Thay webhook của bạn vào đây
+local WEBHOOK_URL = 'https://discord.com/api/webhooks/1361342230190624868/fQAmKwuKdmLnmTFTAa-iVjq_13TQEm2uL2vWQlL76GkYELucKwQJxkp880Br8-EDVf6T'
+
+local httpRequest = (syn and syn.request)
+    or (http and http.request)
+    or http_request
+    or request
+
+if not httpRequest then
+    warn('[Webhook] Executor của bạn không hỗ trợ HTTP.')
+    return
+end
+
+local function sendWebhook(msg)
+    local payload = HttpService:JSONEncode({ content = msg })
+    local ok, err = pcall(function()
+        httpRequest({
+            Url = WEBHOOK_URL,
+            Method = 'POST',
+            Headers = { ['Content-Type'] = 'application/json' },
+            Body = payload,
+        })
+    end)
+    if not ok then
+        warn('[Webhook] Lỗi gửi Discord: ' .. tostring(err))
+    end
+end
+
+-- tìm label Beri
+local function waitForBeriLabel(timeout)
+    local pg = plr:WaitForChild('PlayerGui')
+    local t0 = os.clock()
+    while os.clock() - t0 < (timeout or 20) do
+        local ok, label = pcall(function()
+            return pg:FindFirstChild('Menu', true)
+                and pg.Menu.Frame.C.Frame.A.Beri:FindFirstChild('BeriAmount')
+        end)
+        if ok and label and label:IsA('TextLabel') then
+            return label
+        end
+        task.wait(0.2)
+    end
+    return nil
+end
+
+-- lọc chuỗi -> số
+local function toNumber(txt)
+    local clean = tostring(txt or ''):gsub('[^%d%-]', '')
+    return tonumber(clean)
+end
+
+task.spawn(function()
+    local label = waitForBeriLabel(20)
+    if not label then
+        warn('[Webhook] Không tìm thấy label BeriAmount.')
+        return
+    end
+
+    local lastText = label.Text
+    local lastVal = toNumber(lastText) or 0
+    sendWebhook(
+        ('✅ 👤 Name: **%s**\n💰 Beri hiện tại: **%s**'):format(
+            plr.Name,
+            lastText
+        )
+    )
+
+    local lastChangeSend = 0
+    label:GetPropertyChangedSignal('Text'):Connect(function()
+        local now = os.clock()
+        if now - lastChangeSend < 3 then
+            return
+        end -- cooldown 3s
+        local newText = label.Text
+        local newVal = toNumber(newText)
+        if newVal and newVal ~= lastVal then
+            local diff = newVal - lastVal
+            lastChangeSend = now
+            sendWebhook(
+                ('🔄 👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Thay đổi: **%+d**'):format(
+                    plr.Name,
+                    newText,
+                    diff
+                )
+            )
+            lastText, lastVal = newText, newVal
+        end
+    end)
+
+    while true do
+        task.wait(60)
+        local curText = label.Text
+        local curVal = toNumber(curText) or lastVal
+        local diff = curVal - lastVal
+        sendWebhook(
+            ('⏱️ 1 phút\n👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Tăng: **%+d**'):format(
+                plr.Name,
+                curText,
+                diff
+            )
+        )
+        lastText, lastVal = curText, curVal
+    end
+end)
