@@ -151,22 +151,24 @@ local function runAutoFarm()
         Vector3.new(1490.294, 257.386, 2170.921),
         Vector3.new(-1067.976, 358.000, 1664.521),
         Vector3.new(2054.818, 300.000, -386.609),
-        Vector3.new(2054.818, 213.000, -386.609),
-        Vector3.new(4.568, 218.000, -415.644),
-        Vector3.new(-132.246, 600.000, -669.693),
-        Vector3.new(-132.246, 213.000, -669.693),
-        Vector3.new(-1252.285, 300.680, -1174.963),
-        Vector3.new(-1252.285, 214.680, -1174.963),
-        Vector3.new(-1293.003, 400.000, -1352.464),
-        Vector3.new(-1303.691, 215.000, -1352.504),
-        Vector3.new(-1282.621, 236.998, -1370.323),
-        Vector3.new(-1281.401, 215.200, -1370.365),
-        Vector3.new(999.243, 221.000, -3338.135),
-        Vector3.new(1246.043, 301.300, -3239.412),
-        Vector3.new(1246.043, 221.300, -3239.412),
-        Vector3.new(1982.502, 315.000, 562.961),
-        Vector3.new(1982.502, 215.000, 562.961),
-        Vector3.new(90.495, 263.010, -36.196),
+      Vector3.new(2054.818, 213.000, -386.609),
+    Vector3.new(-2.912, 413.000, -211.506),
+    Vector3.new(1.326, 213.000, -411.152),
+    Vector3.new(-132.246, 600.000, -669.693),
+    Vector3.new(-132.246, 213.000, -669.693),
+    Vector3.new(-1252.285, 300.680, -1174.963),
+    Vector3.new(-1252.285, 214.680, -1174.963),
+    Vector3.new(-1283.089, 236.998, -1357.905),
+    Vector3.new(-1303.691, 215.000, -1352.504),
+    Vector3.new(-1282.621, 236.998, -1370.323),
+    Vector3.new(-1281.401, 215.200, -1370.365),
+    Vector3.new(999.243, 421.000, -3338.135),
+    Vector3.new(999.243, 221.000, -3338.135),
+    Vector3.new(1246.043, 301.300, -3239.412),
+    Vector3.new(1246.043, 221.300, -3239.412),
+    Vector3.new(1982.502, 315.000, 562.961),
+    Vector3.new(1982.502, 215.000, 562.961),
+    Vector3.new(90.495, 263.010, -36.196),
     }
     local function moveTo(pos)
         local tw = TweenService:Create(
@@ -179,7 +181,7 @@ local function runAutoFarm()
     end
 
     local done = false
-    task.delay(100, function()
+    task.delay(110, function()
         done = true
     end)
 
@@ -198,7 +200,7 @@ farmBtn.MouseButton1Click:Connect(function()
     task.spawn(function()
         while true do
             runAutoFarm()
-            task.wait(5)
+            task.wait(3)
         end
     end)
 end)
