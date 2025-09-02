@@ -1,21 +1,20 @@
 -- 📣 Discord Webhook: Beri tracker (Client/Executor)
 
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
+local Players = game:GetService('Players')
+local HttpService = game:GetService('HttpService')
 local plr = Players.LocalPlayer
 
 -- 🔗 Thay webhook của bạn vào đây
-local WEBHOOK_URL = "https://discord.com/api/webhooks/xxxxxxxx/yyyyyyyy"
+local WEBHOOK_URL = 'https://discord.com/api/webhooks/1361342230190624868/fQAmKwuKdmLnmTFTAa-iVjq_13TQEm2uL2vWQlL76GkYELucKwQJxkp880Br8-EDVf6T'
 
 -- chọn hàm http phù hợp executor
-local httpRequest =
-    (syn and syn.request) or
-    (http and http.request) or
-    http_request or
-    request
+local httpRequest = (syn and syn.request)
+    or (http and http.request)
+    or http_request
+    or request
 
 if not httpRequest then
-    warn("[Webhook] Executor của bạn không hỗ trợ HTTP.")
+    warn('[Webhook] Executor của bạn không hỗ trợ HTTP.')
     return
 end
 
@@ -24,26 +23,26 @@ local function sendWebhook(msg)
     local ok, err = pcall(function()
         httpRequest({
             Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = payload
+            Method = 'POST',
+            Headers = { ['Content-Type'] = 'application/json' },
+            Body = payload,
         })
     end)
     if not ok then
-        warn("[Webhook] Lỗi gửi Discord: " .. tostring(err))
+        warn('[Webhook] Lỗi gửi Discord: ' .. tostring(err))
     end
 end
 
 -- tìm label Beri
 local function waitForBeriLabel(timeout)
-    local pg = plr:WaitForChild("PlayerGui")
+    local pg = plr:WaitForChild('PlayerGui')
     local t0 = os.clock()
     while os.clock() - t0 < (timeout or 20) do
         local ok, label = pcall(function()
-            return pg:FindFirstChild("Menu", true)
-                and pg.Menu.Frame.C.Frame.A.Beri:FindFirstChild("BeriAmount")
+            return pg:FindFirstChild('Menu', true)
+                and pg.Menu.Frame.C.Frame.A.Beri:FindFirstChild('BeriAmount')
         end)
-        if ok and label and label:IsA("TextLabel") then
+        if ok and label and label:IsA('TextLabel') then
             return label
         end
         task.wait(0.2)
@@ -53,33 +52,57 @@ end
 
 -- lọc chuỗi -> số
 local function toNumber(txt)
-    local clean = tostring(txt or ""):gsub("[^%d%-]", "")
+    local clean = tostring(txt or ''):gsub('[^%d%-]', '')
     return tonumber(clean)
 end
 
 task.spawn(function()
     local label = waitForBeriLabel(20)
     if not label then
-        warn("[Webhook] Không tìm thấy label BeriAmount.")
+        warn('[Webhook] Không tìm thấy label BeriAmount.')
         return
     end
 
-    -- giá trị ban đầu
+    -- báo Online
     local lastText = label.Text
     local lastVal = toNumber(lastText) or 0
-    sendWebhook(("✅ 👤 Name: **%s**\n💰 Beri ban đầu: **%s**"):format(plr.Name, lastText))
+    sendWebhook(
+        ('✅ 👤 Name: **%s**\n💰 Beri ban đầu: **%s**\n📡 Trạng thái: **Online**'):format(
+            plr.Name,
+            lastText
+        )
+    )
 
     -- chỉ báo theo chu kỳ 1 phút
     while true do
-        task.wait(300)
+        task.wait(60)
         local curText = label.Text
         local curVal = toNumber(curText) or lastVal
         local diff = curVal - lastVal
-        sendWebhook(("⏱️ 5 phút\n👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Tăng/Giảm: **%+d**"):format(
-            plr.Name,
-            curText,
-            diff
-        ))
+        sendWebhook(
+            ('⏱️ 1 phút\n👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Tăng/Giảm: **%+d**\n📡 Trạng thái: **Online**'):format(
+                plr.Name,
+                curText,
+                diff
+            )
+        )
         lastText, lastVal = curText, curVal
     end
+end)
+
+-- khi thoát game → báo Offline
+plr.OnTeleport:Connect(function()
+    sendWebhook(
+        ('❌ 👤 Name: **%s**\n📡 Trạng thái: **Offline**'):format(
+            plr.Name
+        )
+    )
+end)
+
+game:BindToClose(function()
+    sendWebhook(
+        ('❌ 👤 Name: **%s**\n📡 Trạng thái: **Offline**'):format(
+            plr.Name
+        )
+    )
 end)
