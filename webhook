@@ -71,11 +71,11 @@ task.spawn(function()
 
     -- chỉ báo theo chu kỳ 1 phút
     while true do
-        task.wait(60)
+        task.wait(300)
         local curText = label.Text
         local curVal = toNumber(curText) or lastVal
         local diff = curVal - lastVal
-        sendWebhook(("⏱️ 1 phút\n👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Tăng/Giảm: **%+d**"):format(
+        sendWebhook(("⏱️ 5 phút\n👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Tăng/Giảm: **%+d**"):format(
             plr.Name,
             curText,
             diff
