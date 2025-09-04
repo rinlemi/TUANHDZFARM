@@ -14,7 +14,7 @@ end
 local frame = gui:FindFirstChild('Frame')
 if not frame then
 	frame = Instance.new('Frame')
-	frame.Size = UDim2.new(0, 250, 0, 320)
+	frame.Size = UDim2.new(0, 250, 0, 360)
 	frame.Position = UDim2.new(0.3, 0, 0.3, 0)
 	frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 	frame.BorderSizePixel = 0
@@ -74,24 +74,13 @@ createButton('BtnTron', '🛡️ Trốn', Color3.fromRGB(200, 50, 50), 0.3).Mous
 	end
 )
 
--- 🎨 Giảm Đồ Họa
-createButton(
-	'BtnLowGFX',
-	'🎨 Giảm Đồ Họa',
-	Color3.fromRGB(120, 120, 120),
-	0.45
-).MouseButton1Click:Connect(function()
-	-- (copy đoạn giảm đồ họa ở trên vào đây nếu cần)
-	print('Đã giảm đồ họa ✅')
-end)
-
 -- 🤖 Auto Sam (3p 1 lần)
 local autoSam = false
 local btnAuto = createButton(
 	'BtnAutoSam',
 	'🤖 Auto Sam (OFF)',
 	Color3.fromRGB(80, 150, 250),
-	0.6
+	0.45
 )
 btnAuto.MouseButton1Click:Connect(function()
 	autoSam = not autoSam
@@ -113,7 +102,7 @@ local btnTimer = createButton(
 	'BtnTimer',
 	'⏳ Bắt đầu 25p',
 	Color3.fromRGB(255, 170, 0),
-	0.75
+	0.6
 )
 btnTimer.MouseButton1Click:Connect(function()
 	btnTimer.Text = '⏳ Đang chạy...'
@@ -135,7 +124,7 @@ createButton(
 	'BtnPlatform',
 	'🟧 Tạo Platform',
 	Color3.fromRGB(255, 140, 0),
-	0.9
+	0.75
 ).MouseButton1Click:Connect(function()
 	local pos = Vector3.new(-1232.842, 2014.000, -1281.932)
 	local pad = Instance.new('Part')
@@ -147,4 +136,34 @@ createButton(
 	pad.Color = Color3.fromRGB(255, 170, 0)
 	pad.CFrame = CFrame.new(pos)
 	pad.Parent = workspace
+end)
+
+-- 📥 Nút Thu Nhỏ / Phóng To
+local minimized = false
+local btnToggle = createButton(
+	'BtnToggle',
+	'📥 Thu Nhỏ',
+	Color3.fromRGB(100, 100, 100),
+	0.9
+)
+
+btnToggle.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	if minimized then
+		for _, child in ipairs(frame:GetChildren()) do
+			if child:IsA('TextButton') and child.Name ~= 'BtnToggle' then
+				child.Visible = false
+			end
+		end
+		frame.Size = UDim2.new(0, 250, 0, 60)
+		btnToggle.Text = '📤 Phóng To'
+	else
+		for _, child in ipairs(frame:GetChildren()) do
+			if child:IsA('TextButton') then
+				child.Visible = true
+			end
+		end
+		frame.Size = UDim2.new(0, 250, 0, 360)
+		btnToggle.Text = '📥 Thu Nhỏ'
+	end
 end)
