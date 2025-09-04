@@ -14,7 +14,7 @@ end
 local frame = gui:FindFirstChild('Frame')
 if not frame then
 	frame = Instance.new('Frame')
-	frame.Size = UDim2.new(0, 250, 0, 360)
+	frame.Size = UDim2.new(0, 250, 0, 320)
 	frame.Position = UDim2.new(0.3, 0, 0.3, 0)
 	frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 	frame.BorderSizePixel = 0
@@ -97,34 +97,12 @@ btnAuto.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ⏳ Đếm 25 phút
-local btnTimer = createButton(
-	'BtnTimer',
-	'⏳ Bắt đầu 25p',
-	Color3.fromRGB(255, 170, 0),
-	0.6
-)
-btnTimer.MouseButton1Click:Connect(function()
-	btnTimer.Text = '⏳ Đang chạy...'
-	task.spawn(function()
-		for i = 25 * 60, 1, -1 do
-			btnTimer.Text = '⏳ '
-				.. math.floor(i / 60)
-				.. 'p '
-				.. (i % 60)
-				.. 's'
-			task.wait(1)
-		end
-		btnTimer.Text = '⏳ Hết 25p!'
-	end)
-end)
-
--- 🟧 Tạo Platform
+-- 🟧 Tạo Platform (dời lên trên)
 createButton(
 	'BtnPlatform',
 	'🟧 Tạo Platform',
 	Color3.fromRGB(255, 140, 0),
-	0.75
+	0.6
 ).MouseButton1Click:Connect(function()
 	local pos = Vector3.new(-1232.842, 2014.000, -1281.932)
 	local pad = Instance.new('Part')
@@ -138,13 +116,13 @@ createButton(
 	pad.Parent = workspace
 end)
 
--- 📥 Nút Thu Nhỏ / Phóng To
+-- 📥 Nút Thu Nhỏ / Phóng To (luôn ở cuối)
 local minimized = false
 local btnToggle = createButton(
 	'BtnToggle',
 	'📥 Thu Nhỏ',
 	Color3.fromRGB(100, 100, 100),
-	0.9
+	0.8
 )
 
 btnToggle.MouseButton1Click:Connect(function()
@@ -163,7 +141,7 @@ btnToggle.MouseButton1Click:Connect(function()
 				child.Visible = true
 			end
 		end
-		frame.Size = UDim2.new(0, 250, 0, 360)
+		frame.Size = UDim2.new(0, 250, 0, 320)
 		btnToggle.Text = '📥 Thu Nhỏ'
 	end
 end)
