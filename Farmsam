@@ -97,7 +97,7 @@ btnAuto.MouseButton1Click:Connect(function()
 	end
 end)
 
--- 🟧 Tạo Platform (dời lên trên)
+-- 🟧 Tạo Platform
 createButton(
 	'BtnPlatform',
 	'🟧 Tạo Platform',
@@ -116,32 +116,43 @@ createButton(
 	pad.Parent = workspace
 end)
 
--- 📥 Nút Thu Nhỏ / Phóng To (luôn ở cuối)
+-- ================== NÚT THU NHỎ / PHÓNG TO ==================
 local minimized = false
-local btnToggle = createButton(
-	'BtnToggle',
-	'📥 Thu Nhỏ',
-	Color3.fromRGB(100, 100, 100),
-	0.8
-)
+local btnToggle = frame:FindFirstChild("BtnToggle")
+if not btnToggle then
+	btnToggle = Instance.new("TextButton")
+	btnToggle.Name = "BtnToggle"
+	btnToggle.Size = UDim2.new(0, 25, 0, 25)
+	btnToggle.Position = UDim2.new(1, -30, 0, 2) -- góc trên phải
+	btnToggle.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	btnToggle.Text = "📥"
+	btnToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btnToggle.Font = Enum.Font.GothamBold
+	btnToggle.TextSize = 14
+	btnToggle.Parent = frame
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = btnToggle
+end
 
 btnToggle.MouseButton1Click:Connect(function()
 	minimized = not minimized
 	if minimized then
 		for _, child in ipairs(frame:GetChildren()) do
-			if child:IsA('TextButton') and child.Name ~= 'BtnToggle' then
+			if child:IsA("TextButton") and child.Name ~= "BtnToggle" then
 				child.Visible = false
 			end
 		end
-		frame.Size = UDim2.new(0, 250, 0, 60)
-		btnToggle.Text = '📤 Phóng To'
+		frame.Size = UDim2.new(0, 250, 0, 40) -- chỉ còn tiêu đề
+		btnToggle.Text = "📤"
 	else
 		for _, child in ipairs(frame:GetChildren()) do
-			if child:IsA('TextButton') then
+			if child:IsA("TextButton") then
 				child.Visible = true
 			end
 		end
-		frame.Size = UDim2.new(0, 250, 0, 320)
-		btnToggle.Text = '📥 Thu Nhỏ'
+		frame.Size = UDim2.new(0, 250, 0, 320) -- full lại
+		btnToggle.Text = "📥"
 	end
 end)
