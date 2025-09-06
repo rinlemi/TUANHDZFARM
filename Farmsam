@@ -70,7 +70,7 @@ createButton('BtnSam', '🏠 Về Sam', Color3.fromRGB(50, 200, 50), 0.15).Mouse
 -- 🛡️ Trốn
 createButton('BtnTron', '🛡️ Trốn', Color3.fromRGB(200, 50, 50), 0.3).MouseButton1Click:Connect(
 	function()
-		player.Character:MoveTo(Vector3.new(-50.000, 211394.688, 43.000))
+		player.Character:MoveTo(Vector3.new(-50.000, 211194.688, 43.000))
 	end
 )
 
