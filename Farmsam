@@ -63,7 +63,7 @@ end
 -- 🏠 Về Sam
 createButton('BtnSam', '🏠 Về Sam', Color3.fromRGB(50, 200, 50), 0.15).MouseButton1Click:Connect(
 	function()
-		player.Character:MoveTo(Vector3.new(-1232.842, 214.000, -1281.932))
+		player.Character:MoveTo(Vector3.new(1521.053, 263.899, 2132.584))
 	end
 )
 
