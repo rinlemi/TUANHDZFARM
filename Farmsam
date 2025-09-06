@@ -70,7 +70,7 @@ createButton('BtnSam', '🏠 Về Sam', Color3.fromRGB(50, 200, 50), 0.15).Mouse
 -- 🛡️ Trốn
 createButton('BtnTron', '🛡️ Trốn', Color3.fromRGB(200, 50, 50), 0.3).MouseButton1Click:Connect(
 	function()
-		player.Character:MoveTo(Vector3.new(-50.000, 211194.688, 43.000))
+		player.Character:MoveTo(Vector3.new(1521.053, 10063.899, 2132.584))
 	end
 )
 
@@ -104,7 +104,7 @@ createButton(
 	Color3.fromRGB(255, 140, 0),
 	0.6
 ).MouseButton1Click:Connect(function()
-	local pos = Vector3.new(-50.000, 211194.688, 43.000)
+	local pos = Vector3.new(1521.053, 10063.899, 2132.584))
 	local pad = Instance.new('Part')
 	pad.Name = 'TUANHDZVCL_Platform'
 	pad.Size = Vector3.new(50, 2, 50)
