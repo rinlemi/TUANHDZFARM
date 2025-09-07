@@ -91,7 +91,7 @@ btnAuto.MouseButton1Click:Connect(function()
 				rs:WaitForChild('Connections')
 					:WaitForChild('Claim_Sam')
 					:FireServer('Claim1')
-				task.wait(120) -- 3 phút
+				task.wait(100) -- 3 phút
 			end
 		end)
 	end
