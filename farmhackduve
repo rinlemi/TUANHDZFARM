@@ -1,0 +1,88 @@
+local TS=game:GetService("TweenService")
+local P=game:GetService("Players")
+local V=game:GetService("VirtualInputManager")
+local me=P.LocalPlayer
+
+local ZA=Vector3.new(4313.4,214,4527.2)
+local ZB=Vector3.new(4897.8,1013,5687.9)
+
+local safe1=Vector3.new(6616.4,3036,-2132.5)
+local safe2=Vector3.new(6616.4,236,-2132.5)
+local farm1=Vector3.new(4574.5,1013,5397.1)
+local farm2=Vector3.new(4574.5,214,5397.1)
+
+local danger=false
+local autoC=true
+
+local function inZ(p)
+	return p.X>=math.min(ZA.X,ZB.X) and p.X<=math.max(ZA.X,ZB.X)
+	and p.Y>=math.min(ZA.Y,ZB.Y) and p.Y<=math.max(ZA.Y,ZB.Y)
+	and p.Z>=math.min(ZA.Z,ZB.Z) and p.Z<=math.max(ZA.Z,ZB.Z)
+end
+
+local function hasP()
+	for _,plr in ipairs(P:GetPlayers()) do
+		if plr~=me then
+			local c=plr.Character
+			local hrp=c and c:FindFirstChild("HumanoidRootPart")
+			if hrp and inZ(hrp.Position) then return true end
+		end
+	end
+end
+
+local function tp(pos,t)
+	local c=me.Character
+	local hrp=c and c:FindFirstChild("HumanoidRootPart")
+	local hum=c and c:FindFirstChild("Humanoid")
+	if not hrp or not hum then return end
+	hum.WalkSpeed=0 hum.JumpPower=0 hrp.Anchored=true
+	local tw=TS:Create(hrp,TweenInfo.new(t),{CFrame=CFrame.new(pos)})
+	tw:Play() tw.Completed:Wait()
+end
+
+local function un()
+	local c=me.Character
+	local hrp=c and c:FindFirstChild("HumanoidRootPart")
+	local hum=c and c:FindFirstChild("Humanoid")
+	if hrp and hum then hrp.Anchored=false hum.WalkSpeed=16 hum.JumpPower=50 end
+end
+
+task.spawn(function()
+	while true do
+		if autoC then
+			local s=tick()
+			while tick()-s<2 and autoC do
+				V:SendKeyEvent(true,Enum.KeyCode.C,false,game)
+				task.wait(0.1)
+				V:SendKeyEvent(false,Enum.KeyCode.C,false,game)
+				task.wait(0.1)
+			end
+		end
+		task.wait(0.1)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		V:SendKeyEvent(true,Enum.KeyCode.R,false,game)
+		task.wait(10)
+		V:SendKeyEvent(false,Enum.KeyCode.R,false,game)
+		task.wait(10)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		if hasP() then
+			if not danger then
+				danger=true autoC=false
+				tp(safe1,2) tp(safe2,2) un()
+			end
+			while hasP() do task.wait(1) end
+			danger=false
+			tp(farm1,2) tp(farm2,2) un()
+			autoC=true
+		end
+		task.wait(0.5)
+	end
+end)
