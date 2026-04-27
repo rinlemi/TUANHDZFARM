@@ -1,0 +1,58 @@
+local TS = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ZA = Vector3.new(4313.4, 214.0, 4527.2)
+local ZB = Vector3.new(4897.8, 1013.0, 5687.9)
+local me = Players.LocalPlayer
+local function inZone(p)
+	return p.X>=math.min(ZA.X,ZB.X) and p.X<=math.max(ZA.X,ZB.X)
+	and p.Y>=math.min(ZA.Y,ZB.Y) and p.Y<=math.max(ZA.Y,ZB.Y)
+	and p.Z>=math.min(ZA.Z,ZB.Z) and p.Z<=math.max(ZA.Z,ZB.Z)
+end
+local function anyoneInZone()
+	for _,plr in ipairs(Players:GetPlayers())do
+		if plr==me then continue end
+		local c=plr.Character
+		if not c then continue end
+		local hrp=c:FindFirstChild("HumanoidRootPart")
+		if hrp and inZone(hrp.Position) then return true end
+	end
+	return false
+end
+local danger=false
+local function tween(pos,t)
+	local myC=me.Character
+	if not myC then return end
+	local hrp=myC:FindFirstChild("HumanoidRootPart")
+	local hum=myC:FindFirstChild("Humanoid")
+	if not hrp or not hum then return end
+	hum.WalkSpeed=0 hum.JumpPower=0 hrp.Anchored=true
+	local tw=TS:Create(hrp,TweenInfo.new(t),{CFrame=CFrame.new(pos)})
+	tw:Play() tw.Completed:Wait()
+end
+local function unlock()
+	local myC=me.Character
+	if not myC then return end
+	local hrp=myC:FindFirstChild("HumanoidRootPart")
+	local hum=myC:FindFirstChild("Humanoid")
+	if not hrp or not hum then return end
+	hrp.Anchored=false hum.WalkSpeed=16 hum.JumpPower=50
+end
+task.spawn(function()
+	while true do
+		if anyoneInZone() then
+			if not danger then
+				danger=true
+				tween(Vector3.new(6616.4,3036.0,-2132.5),2)
+				tween(Vector3.new(6616.4,236.0,-2132.5),2)
+				unlock()
+			end
+			while anyoneInZone() do task.wait(1) end
+			danger=false
+			tween(Vector3.new(4574.5,1013,5397.1),2)
+			tween(Vector3.new(4574.5,214.0,5397.1),2)
+			unlock()
+		end
+		task.wait(0.5)
+	end
+end)
