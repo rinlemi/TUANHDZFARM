@@ -1,0 +1,275 @@
+-- Tạo UI
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local MinBtn = Instance.new("TextButton")
+
+-- Các button
+local BtnGravity = Instance.new("TextButton")
+local BtnStringRoom = Instance.new("TextButton")
+local BtnHaki = Instance.new("TextButton")
+local BtnTP1 = Instance.new("TextButton")
+local BtnTP2 = Instance.new("TextButton")
+local BtnAFK = Instance.new("TextButton")
+local BtnStopAll = Instance.new("TextButton")
+local StatusLabel = Instance.new("TextLabel")
+
+-- Setup ScreenGui
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+
+-- Setup MainFrame
+MainFrame.Parent = ScreenGui
+MainFrame.Size = UDim2.new(0, 220, 0, 380)
+MainFrame.Position = UDim2.new(0, 10, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+-- Bo góc
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = MainFrame
+
+-- Title
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, -40, 0, 35)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Title.TextColor3 = Color3.fromRGB(255, 200, 0)
+Title.Text = "⚡ Script Menu"
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = Title
+
+-- Minimize Button
+MinBtn.Parent = MainFrame
+MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.Position = UDim2.new(1, -35, 0, 3)
+MinBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+MinBtn.Text = "−"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 18
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.BorderSizePixel = 0
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinBtn
+
+-- Status
+StatusLabel.Parent = MainFrame
+StatusLabel.Size = UDim2.new(1, -10, 0, 25)
+StatusLabel.Position = UDim2.new(0, 5, 0, 38)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+StatusLabel.Text = "● Sẵn sàng"
+StatusLabel.TextSize = 13
+StatusLabel.Font = Enum.Font.Gotham
+
+-- Tạo button function
+local function makeButton(name, posY, color)
+    local btn = Instance.new("TextButton")
+    btn.Parent = MainFrame
+    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, posY)
+    btn.BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = name
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamBold
+    btn.BorderSizePixel = 0
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 6)
+    c.Parent = btn
+    return btn
+end
+
+BtnGravity   = makeButton("🌑 Gravity Meteor",   70,  Color3.fromRGB(80, 50, 150))
+BtnStringRoom= makeButton("🕸 String Room",      120, Color3.fromRGB(50, 100, 150))
+BtnHaki      = makeButton("👊 Haki Training",    170, Color3.fromRGB(150, 80, 50))
+BtnTP1       = makeButton("📍 TP Đặt Lồng",      220, Color3.fromRGB(50, 130, 80))
+BtnTP2       = makeButton("📍 TP Trốn",          270, Color3.fromRGB(50, 130, 80))
+BtnAFK       = makeButton("💤 AFK Mode",         320, Color3.fromRGB(80, 80, 80))
+BtnStopAll   = makeButton("⛔ STOP TẤT CẢ",      330, Color3.fromRGB(180, 30, 30))
+
+BtnStopAll.Position = UDim2.new(0, 10, 0, 330)
+
+-- Thread tracking
+local threads = {}
+local function stopAll()
+    for _, t in pairs(threads) do
+        task.cancel(t)
+    end
+    threads = {}
+    StatusLabel.Text = "⛔ Đã dừng tất cả"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+end
+
+local function setStatus(text, color)
+    StatusLabel.Text = "● " .. text
+    StatusLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
+end
+
+-- Minimize
+local minimized = false
+MinBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    for _, v in pairs(MainFrame:GetChildren()) do
+        if v ~= Title and v ~= MinBtn then
+            v.Visible = not minimized
+        end
+    end
+    MainFrame.Size = minimized and UDim2.new(0, 220, 0, 40) or UDim2.new(0, 220, 0, 380)
+    MinBtn.Text = minimized and "+" or "−"
+end)
+
+-- =====================
+-- GRAVITY METEOR
+-- =====================
+BtnGravity.MouseButton1Click:Connect(function()
+    stopAll()
+    setStatus("Gravity Meteor đang chạy...", Color3.fromRGB(180, 100, 255))
+    local t = task.spawn(function()
+        local Players = game:GetService("Players")
+        local chargeTime = 10
+        local cooldown = 5
+        local locations = {
+            CFrame.new(-2657.96044921875, 232.58395385742188, -3761.018310546875, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+            CFrame.new(-3594.859130859375, 249.02792358398438, -3807.361083984375, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+            CFrame.new(-3434.383056640625, 294.19580078125, -4521.24169921875, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+            CFrame.new(-2667.20947265625, 293.9255676269531, -4439.6123046875, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+        }
+        local function throwMeteor(targetCFrame)
+            local char = Players.LocalPlayer.Character
+            local gravityRemote = char:WaitForChild("Powers"):WaitForChild("Gravity"):WaitForChild("RemoteEvent")
+            local hotRemote = char:WaitForChild("Powers"):WaitForChild("Hot"):WaitForChild("RemoteEvent")
+            local snowRemote = char:WaitForChild("Powers"):WaitForChild("Snow"):WaitForChild("RemoteEvent")
+            local startCFrame = char.HumanoidRootPart.CFrame
+            gravityRemote:FireServer("GravityPower6", "StartCharging", startCFrame, workspace:WaitForChild("Z_Island222"):WaitForChild("Model"):WaitForChild("Board"))
+            task.wait(chargeTime)
+            hotRemote:FireServer("HotPower1", "FlightDisabler") task.wait(0.1)
+            snowRemote:FireServer("SnowPower4", "FlightDisabler") task.wait(0.1)
+            gravityRemote:FireServer("GravityPower1", "FlightDisabler") task.wait(0.1)
+            gravityRemote:FireServer("GravityPower6", "StopCharging", targetCFrame, nil, 300)
+        end
+        while true do
+            for i, loc in ipairs(locations) do
+                setStatus("Meteor địa điểm " .. i, Color3.fromRGB(180, 100, 255))
+                throwMeteor(loc)
+                task.wait(cooldown)
+            end
+        end
+    end)
+    table.insert(threads, t)
+end)
+
+-- =====================
+-- STRING ROOM
+-- =====================
+BtnStringRoom.MouseButton1Click:Connect(function()
+    stopAll()
+    setStatus("String Room đang chạy...", Color3.fromRGB(100, 180, 255))
+    local t = task.spawn(function()
+        local char = game:GetService("Players").LocalPlayer.Character
+        local hotRemote = char:WaitForChild("Powers"):WaitForChild("Hot"):WaitForChild("RemoteEvent")
+        local snowRemote = char:WaitForChild("Powers"):WaitForChild("Snow"):WaitForChild("RemoteEvent")
+        local gravityRemote = char:WaitForChild("Powers"):WaitForChild("Gravity"):WaitForChild("RemoteEvent")
+        local stringRemote = char:WaitForChild("Powers"):WaitForChild("String"):WaitForChild("RemoteEvent")
+        local holdTime = 20
+        local startCFrame = CFrame.new(-327.9490661621094, 213.99996948242188, -1249.151123046875, -0.9128090143203735, -0.10264084488153458, 0.3952779173851013, -0, 0.9679008722305298, 0.25133243203163147, -0.40838679671287537, 0.22941851615905762, -0.883508563041687)
+        local stopCFrame = CFrame.new(-328.8712158203125, 213.99996948242188, -1248.9713134765625, -0.9127922654151917, -0.1021430641412735, 0.39544540643692017, -0, 0.9682224988937378, 0.25009068846702576, -0.40842410922050476, 0.22828084230422974, -0.8837860226631165)
+        local target = workspace:WaitForChild("IslandTown"):WaitForChild("Grass"):WaitForChild("Grass")
+        hotRemote:FireServer("HotPower1", "FlightDisabler") task.wait(0.1)
+        snowRemote:FireServer("SnowPower4", "FlightDisabler") task.wait(0.1)
+        gravityRemote:FireServer("GravityPower1", "FlightDisabler") task.wait(0.1)
+        stringRemote:FireServer("StringPower11", "StartCharging", startCFrame, target, "Right")
+        task.wait(holdTime)
+        hotRemote:FireServer("HotPower1", "FlightDisabler") task.wait(0.1)
+        snowRemote:FireServer("SnowPower4", "FlightDisabler") task.wait(0.1)
+        gravityRemote:FireServer("GravityPower1", "FlightDisabler") task.wait(0.1)
+        stringRemote:FireServer("StringPower11", "StopCharging", stopCFrame, target, 9999)
+        setStatus("String Room đã tạo!", Color3.fromRGB(100, 255, 100))
+    end)
+    table.insert(threads, t)
+end)
+
+-- =====================
+-- HAKI TRAINING
+-- =====================
+BtnHaki.MouseButton1Click:Connect(function()
+    stopAll()
+    setStatus("Haki Training đang chạy...", Color3.fromRGB(255, 150, 50))
+    local t = task.spawn(function()
+        local UserData = workspace:WaitForChild("UserData"):WaitForChild("User_1137442977")
+        local III = UserData:WaitForChild("III")
+        local UpdateHaki = UserData:WaitForChild("UpdateHaki")
+        local holdTime = 20
+        local cooldown = 10
+        while true do
+            UpdateHaki:FireServer() task.wait(0.5)
+            III:FireServer("On", 231)
+            task.wait(holdTime)
+            III:FireServer("Off", 231) task.wait(0.5)
+            UpdateHaki:FireServer()
+            setStatus("Haki cooldown " .. cooldown .. "s...", Color3.fromRGB(255, 150, 50))
+            task.wait(cooldown)
+        end
+    end)
+    table.insert(threads, t)
+end)
+
+-- =====================
+-- TP ĐẶT LỒNG
+-- =====================
+BtnTP1.MouseButton1Click:Connect(function()
+    local me = game:GetService("Players").LocalPlayer
+    local hrp = me.Character:WaitForChild("HumanoidRootPart")
+    hrp.CFrame = CFrame.new(-3148.5, 340.0, -3916.5)
+    setStatus("TP Đặt Lồng!", Color3.fromRGB(100, 255, 100))
+end)
+
+-- =====================
+-- TP TRỐN
+-- =====================
+BtnTP2.MouseButton1Click:Connect(function()
+    local me = game:GetService("Players").LocalPlayer
+    local hrp = me.Character:WaitForChild("HumanoidRootPart")
+    hrp.CFrame = CFrame.new(-3531.5, 353, -4574.7)
+    setStatus("TP Trốn!", Color3.fromRGB(100, 255, 100))
+end)
+
+-- =====================
+-- AFK MODE
+-- =====================
+BtnAFK.MouseButton1Click:Connect(function()
+    stopAll()
+    setStatus("AFK Mode bật!", Color3.fromRGB(150, 150, 150))
+    local t = task.spawn(function()
+        local Players = game:GetService("Players")
+        local VirtualUser = game:GetService("VirtualUser")
+        local player = Players.LocalPlayer
+        player.Idled:Connect(function()
+            VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            local char = player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(30), 0)
+            end
+        end)
+        while true do task.wait(60) end
+    end)
+    table.insert(threads, t)
+end)
+
+-- =====================
+-- STOP ALL
+-- =====================
+BtnStopAll.MouseButton1Click:Connect(function()
+    stopAll()
+end)
