@@ -1,0 +1,107 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+local running = false
+local userFolder = "User_"..player.UserId
+
+local function resetCamera()
+	task.wait(0.2)
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+	camera.CameraSubject = hum
+	camera.CameraType = Enum.CameraType.Custom
+end
+
+local function clearGui()
+	pcall(function()
+		local s = StarterGui:FindFirstChild("Load")
+		if s then s:Destroy() end
+	end)
+	pcall(function()
+		local p = PlayerGui:FindFirstChild("Load")
+		if p then p:Destroy() end
+	end)
+end
+
+local function autoSpawn()
+	pcall(function()
+		ReplicatedStorage:WaitForChild("Connections")
+			:WaitForChild("Spawn")
+			:FireServer(7)
+	end)
+	task.delay(0.5, function()
+		clearGui()
+		resetCamera()
+	end)
+end
+
+local function startRoutine()
+	running = true
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+
+	hum.Died:Connect(function()
+		running = false
+	end)
+
+	-- Bước 1: Đi bộ đến điểm
+	hum:MoveTo(Vector3.new(-427.6, 213.2, -150.5))
+	hum.MoveToFinished:Wait()
+	task.wait(0.2)
+	if not running then return end
+
+	local UserData = workspace:WaitForChild("UserData"):WaitForChild(userFolder)
+	local III = UserData:WaitForChild("III")
+	local UpdateHaki = UserData:WaitForChild("UpdateHaki")
+
+	-- Bước 2: Giữ haki 2 trước
+	task.spawn(function()
+		while running do
+			pcall(function() III:FireServer("On", 231) end)
+			task.wait(0.1)
+		end
+	end)
+
+	-- Bước 3: Sau 1s mới mở haki
+	task.wait(1)
+	if not running then return end
+	pcall(function() UpdateHaki:FireServer() end)
+end
+
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	autoSpawn()
+	task.wait(1)
+	startRoutine()
+	resetCamera()
+end)
+
+PlayerGui.ChildAdded:Connect(function(child)
+	if child.Name == "Load" then
+		task.wait(0.1)
+		pcall(function() child:Destroy() end)
+		resetCamera()
+	end
+end)
+
+task.wait(1)
+autoSpawn()
+task.wait(1)
+startRoutine()
+resetCamera()
+
+-- 🔁 Auto Rejoin sau 50 giây
+local TeleportService = game:GetService("TeleportService")
+local player = game:GetService("Players").LocalPlayer
+
+task.spawn(function()
+	while true do
+		task.wait(50)
+		pcall(function()
+			TeleportService:Teleport(112233665771826, player)
+		end)
+	end
+end)
