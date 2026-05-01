@@ -1,0 +1,106 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+local running = false
+
+-- Camera
+local function resetCamera()
+	task.wait(0.2)
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+	camera.CameraSubject = hum
+	camera.CameraType = Enum.CameraType.Custom
+end
+
+-- Xóa GUI
+local function clearGui()
+	pcall(function()
+		local s = StarterGui:FindFirstChild("Load")
+		if s then s:Destroy() end
+	end)
+	pcall(function()
+		local p = PlayerGui:FindFirstChild("Load")
+		if p then p:Destroy() end
+	end)
+end
+
+-- Spawn
+local function autoSpawn()
+	pcall(function()
+		ReplicatedStorage:WaitForChild("Connections")
+			:WaitForChild("Spawn")
+			:FireServer(7)
+	end)
+	task.delay(0.5, function()
+		clearGui()
+		resetCamera()
+	end)
+end
+
+-- Toàn bộ logic sau spawn
+local function startRoutine()
+	running = true
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+
+	-- Theo dõi khi chết thì dừng
+	hum.Died:Connect(function()
+		running = false
+	end)
+
+	-- Bước 1: Đi bộ đến điểm
+	hum:MoveTo(Vector3.new(-428.0, 213.2, -168.4))
+	hum.MoveToFinished:Wait()
+	task.wait(0.2)
+	if not running then return end
+
+	-- Bước 2: GumPower5 1 lần
+	pcall(function()
+		char:WaitForChild("Powers"):WaitForChild("Gum"):WaitForChild("RemoteEvent"):FireServer(
+			"GumPower5","0",
+			CFrame.new(-428.05926513671875,213.2101593017578,-167.57986450195312,-0.999987006187439,0.004188400227576494,-0.002929703565314412,-2.3283064365386963e-10,0.5731765627861023,0.8194319605827332,0.005111346021294594,0.8194212913513184,-0.5731690526008606),
+			workspace:WaitForChild("IslandWindmill"):WaitForChild("BrickHouse"):WaitForChild("Floor"):WaitForChild("Part")
+		)
+	end)
+	task.wait(0.5)
+	if not running then return end
+
+	-- Bước 3: GumPower3 liên tục cho đến khi chết
+	while running do
+		pcall(function()
+			char:WaitForChild("Powers"):WaitForChild("Gum"):WaitForChild("RemoteEvent"):FireServer(
+				"GumPower3","0end",
+				CFrame.new(-427.8611755371094,214.29263305664062,-150,-0.9999538064002991,0.0031220100354403257,-0.009094289503991604,-2.3283064365386963e-10,0.9458193182945251,0.32469359040260315,0.009615250863134861,0.32467859983444214,-0.94577556848526),
+				workspace:WaitForChild("IslandWindmill"):WaitForChild("BrickHouse"):WaitForChild("Outter"):WaitForChild("Walls"):WaitForChild("Part")
+			)
+		end)
+		task.wait(0.1)
+	end
+end
+
+-- Khi hồi sinh chạy lại toàn bộ
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	autoSpawn()
+	task.wait(1)
+	startRoutine()
+	resetCamera()
+end)
+
+PlayerGui.ChildAdded:Connect(function(child)
+	if child.Name == "Load" then
+		task.wait(0.1)
+		pcall(function() child:Destroy() end)
+		resetCamera()
+	end
+end)
+
+-- Lần đầu chạy
+task.wait(1)
+autoSpawn()
+task.wait(1)
+startRoutine()
+resetCamera()
