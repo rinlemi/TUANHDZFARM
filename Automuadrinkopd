@@ -1,0 +1,196 @@
+local vrs = game:GetService("VirtualInputManager")
+local player = game:GetService("Players").LocalPlayer
+local backpack = player.Backpack
+local remote = workspace.Merchants.BetterDrinkMerchant.Clickable.ShopDrinksPlus.Clicked.Retum
+
+-- GUI
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false
+gui.Name = "DrinkShop"
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 340, 0, 420)
+main.Position = UDim2.new(0, 10, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(0, 180, 255)
+stroke.Thickness = 1.5
+
+-- Title
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "🥤 DRINK SHOP"
+title.TextColor3 = Color3.fromRGB(0, 200, 255)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+
+local drinks = {
+	{name = "Cider+",    color = Color3.fromRGB(180, 80, 20)},
+	{name = "Lemonade+", color = Color3.fromRGB(180, 180, 0)},
+	{name = "Juice+",    color = Color3.fromRGB(0, 150, 50)},
+	{name = "Smoothie+", color = Color3.fromRGB(150, 0, 150)},
+}
+
+local function makeRow(parent, drink, yPos)
+	-- Label
+	local label = Instance.new("TextLabel", parent)
+	label.Size = UDim2.new(0, 90, 0, 36)
+	label.Position = UDim2.new(0, 10, 0, yPos)
+	label.BackgroundColor3 = drink.color
+	label.BorderSizePixel = 0
+	label.Text = drink.name
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.TextSize = 12
+	label.Font = Enum.Font.GothamBold
+	Instance.new("UICorner", label).CornerRadius = UDim.new(0, 6)
+
+	-- Input
+	local input = Instance.new("TextBox", parent)
+	input.Size = UDim2.new(0, 80, 0, 36)
+	input.Position = UDim2.new(0, 108, 0, yPos)
+	input.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+	input.BorderSizePixel = 0
+	input.Text = "10"
+	input.TextColor3 = Color3.fromRGB(255,255,255)
+	input.TextSize = 14
+	input.Font = Enum.Font.GothamBold
+	input.PlaceholderText = "Số lượng"
+	Instance.new("UICorner", input).CornerRadius = UDim.new(0, 6)
+
+	-- Buy button
+	local buyBtn = Instance.new("TextButton", parent)
+	buyBtn.Size = UDim2.new(0, 60, 0, 36)
+	buyBtn.Position = UDim2.new(0, 196, 0, yPos)
+	buyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	buyBtn.BorderSizePixel = 0
+	buyBtn.Text = "Mua"
+	buyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	buyBtn.TextSize = 13
+	buyBtn.Font = Enum.Font.GothamBold
+	Instance.new("UICorner", buyBtn).CornerRadius = UDim.new(0, 6)
+
+	-- Drop button
+	local dropBtn = Instance.new("TextButton", parent)
+	dropBtn.Size = UDim2.new(0, 60, 0, 36)
+	dropBtn.Position = UDim2.new(0, 264, 0, yPos)
+	dropBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+	dropBtn.BorderSizePixel = 0
+	dropBtn.Text = "Drop"
+	dropBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	dropBtn.TextSize = 13
+	dropBtn.Font = Enum.Font.GothamBold
+	Instance.new("UICorner", dropBtn).CornerRadius = UDim.new(0, 6)
+
+	-- Mua logic
+	buyBtn.MouseButton1Click:Connect(function()
+		local amount = tonumber(input.Text) or 10
+		buyBtn.Text = "..."
+		for i = 1, amount do
+			pcall(function() remote:FireServer(drink.name) end)
+			task.wait(0.5)
+		end
+		buyBtn.Text = "Mua"
+		print("✅ Mua " .. amount .. "x " .. drink.name)
+	end)
+
+	-- Drop logic
+	dropBtn.MouseButton1Click:Connect(function()
+		local char = player.Character
+		dropBtn.Text = "..."
+
+		-- Drop hotbar
+		local slots = {
+			Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five,
+			Enum.KeyCode.Six, Enum.KeyCode.Seven, Enum.KeyCode.Eight,
+			Enum.KeyCode.Nine, Enum.KeyCode.Zero,
+		}
+		for _, slot in ipairs(slots) do
+			vrs:SendKeyEvent(true, slot, false, game)
+			task.wait(0.05)
+			vrs:SendKeyEvent(false, slot, false, game)
+			task.wait(0.05)
+			if char:FindFirstChild(drink.name) then
+				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+			end
+		end
+
+		-- Drop backpack
+		for _, item in ipairs(backpack:GetChildren()) do
+			if item.Name == drink.name then
+				item.Parent = char
+				task.wait(0.05)
+				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+			end
+		end
+
+		dropBtn.Text = "Drop"
+		print("✅ Drop hết " .. drink.name)
+	end)
+end
+
+-- Tạo từng hàng
+for i, drink in ipairs(drinks) do
+	makeRow(main, drink, 40 + (i-1) * 80)
+end
+
+-- Drop All button
+local dropAll = Instance.new("TextButton", main)
+dropAll.Size = UDim2.new(0, 310, 0, 36)
+dropAll.Position = UDim2.new(0, 15, 0, 370)
+dropAll.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+dropAll.BorderSizePixel = 0
+dropAll.Text = "🗑️ DROP TẤT CẢ"
+dropAll.TextColor3 = Color3.fromRGB(255,255,255)
+dropAll.TextSize = 14
+dropAll.Font = Enum.Font.GothamBold
+Instance.new("UICorner", dropAll).CornerRadius = UDim.new(0, 8)
+
+dropAll.MouseButton1Click:Connect(function()
+	local char = player.Character
+	dropAll.Text = "Đang drop..."
+	local allDrinks = {"Cider+", "Lemonade+", "Juice+", "Smoothie+"}
+	local slots = {
+		Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five,
+		Enum.KeyCode.Six, Enum.KeyCode.Seven, Enum.KeyCode.Eight,
+		Enum.KeyCode.Nine, Enum.KeyCode.Zero,
+	}
+	for _, name in ipairs(allDrinks) do
+		for _, slot in ipairs(slots) do
+			vrs:SendKeyEvent(true, slot, false, game)
+			task.wait(0.05)
+			vrs:SendKeyEvent(false, slot, false, game)
+			task.wait(0.05)
+			if char:FindFirstChild(name) then
+				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+			end
+		end
+		for _, item in ipairs(backpack:GetChildren()) do
+			if item.Name == name then
+				item.Parent = char
+				task.wait(0.05)
+				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
+				task.wait(0.05)
+			end
+		end
+	end
+	dropAll.Text = "🗑️ DROP TẤT CẢ"
+	print("✅ Drop hết tất cả!")
+end)
+
+print("✅ Drink Shop GUI đã load!")
