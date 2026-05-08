@@ -7,15 +7,13 @@ local fishCount = 0
 local currentThread = nil
 local running = false
 
--- GUI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 gui.Name = "FishingMenu"
 
--- Main Frame
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 220, 0, 320)
-main.Position = UDim2.new(0, 10, 0.5, -160)
+main.Size = UDim2.new(0, 220, 0, 360)
+main.Position = UDim2.new(0, 10, 0.5, -180)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 main.BorderSizePixel = 0
 main.Active = true
@@ -25,7 +23,6 @@ local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(0, 180, 255)
 stroke.Thickness = 1.5
 
--- Title
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1, 0, 0, 40)
 title.Position = UDim2.new(0, 0, 0, 0)
@@ -35,7 +32,6 @@ title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.TextSize = 16
 title.Font = Enum.Font.GothamBold
 
--- Tạo nút
 local function makeButton(parent, text, yPos, color)
 	local btn = Instance.new("TextButton", parent)
 	btn.Size = UDim2.new(0, 190, 0, 38)
@@ -50,16 +46,16 @@ local function makeButton(parent, text, yPos, color)
 	return btn
 end
 
-local btnSuper = makeButton(main, "🎣 Super Rod", 48, Color3.fromRGB(30, 80, 150))
-local btnWood  = makeButton(main, "🪵 Wood Rod", 95, Color3.fromRGB(100, 60, 20))
-local btnTP    = makeButton(main, "📍 TP Câu Cá", 142, Color3.fromRGB(20, 120, 60))
-local btnSell  = makeButton(main, "💰 TP Sell", 189, Color3.fromRGB(150, 100, 0))
-local btnAFK   = makeButton(main, "💤 Anti AFK: TẮT", 236, Color3.fromRGB(60, 20, 80))
+local btnSuper  = makeButton(main, "🎣 Super Rod", 48, Color3.fromRGB(30, 80, 150))
+local btnWood   = makeButton(main, "🪵 Wood Rod", 95, Color3.fromRGB(100, 60, 20))
+local btnSturdy = makeButton(main, "🪨 Sturdy Rod", 142, Color3.fromRGB(80, 80, 80))
+local btnTP     = makeButton(main, "📍 TP Câu Cá", 189, Color3.fromRGB(20, 120, 60))
+local btnSell   = makeButton(main, "💰 TP Sell", 236, Color3.fromRGB(150, 100, 0))
+local btnAFK    = makeButton(main, "💤 Anti AFK: TẮT", 283, Color3.fromRGB(60, 20, 80))
 
--- Fish counter
 local counterFrame = Instance.new("Frame", main)
 counterFrame.Size = UDim2.new(0, 190, 0, 32)
-counterFrame.Position = UDim2.new(0, 15, 0, 282)
+counterFrame.Position = UDim2.new(0, 15, 0, 322)
 counterFrame.BackgroundColor3 = Color3.fromRGB(0, 40, 60)
 counterFrame.BorderSizePixel = 0
 Instance.new("UICorner", counterFrame).CornerRadius = UDim.new(0, 8)
@@ -72,12 +68,10 @@ counterLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
 counterLabel.TextSize = 13
 counterLabel.Font = Enum.Font.GothamBold
 
--- Fishing loop
 local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
 	while running do
 		local char = player.Character or player.CharacterAdded:Wait()
-		-- Thả cần
 		pcall(function()
 			char:WaitForChild(rodName):WaitForChild("Click"):FireServer(
 				vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
@@ -86,7 +80,6 @@ local function fishingLoop(rodName)
 		print("🎣 Thả cần... chờ 35s")
 		task.wait(35)
 		if not running then break end
-		-- Kéo cần
 		pcall(function()
 			char:WaitForChild(rodName):WaitForChild("Click"):FireServer(
 				vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
@@ -94,10 +87,8 @@ local function fishingLoop(rodName)
 		end)
 		task.wait(0.3)
 		if not running then break end
-		-- Start minigame
 		pcall(function() fishing:FireServer("Start", "Easy") end)
 		task.wait(0.2)
-		-- Running 10 lần
 		for i = 1, 10 do
 			if not running then break end
 			pcall(function() fishing:FireServer("Running", "Default") end)
@@ -106,7 +97,6 @@ local function fishingLoop(rodName)
 		end
 		task.wait(0.5)
 		if not running then break end
-		-- Finish
 		pcall(function() fishing:FireServer("Finish", 10) end)
 		fishCount = fishCount + 1
 		counterLabel.Text = "🐟 Cá câu được: " .. fishCount
@@ -123,31 +113,36 @@ local function stopAll()
 	end
 	btnSuper.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
 	btnWood.BackgroundColor3 = Color3.fromRGB(100, 60, 20)
+	btnSturdy.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 	btnSuper.Text = "🎣 Super Rod"
 	btnWood.Text = "🪵 Wood Rod"
+	btnSturdy.Text = "🪨 Sturdy Rod"
 end
 
--- Nút Super Rod
 btnSuper.MouseButton1Click:Connect(function()
 	if running then stopAll() return end
-	stopAll()
-	running = true
+	stopAll() running = true
 	btnSuper.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 	btnSuper.Text = "⏹ Dừng Super Rod"
 	currentThread = task.spawn(function() fishingLoop("Super Rod") end)
 end)
 
--- Nút Wood Rod
 btnWood.MouseButton1Click:Connect(function()
 	if running then stopAll() return end
-	stopAll()
-	running = true
+	stopAll() running = true
 	btnWood.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 	btnWood.Text = "⏹ Dừng Wood Rod"
 	currentThread = task.spawn(function() fishingLoop("Wood Rod") end)
 end)
 
--- Nút TP câu cá
+btnSturdy.MouseButton1Click:Connect(function()
+	if running then stopAll() return end
+	stopAll() running = true
+	btnSturdy.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	btnSturdy.Text = "⏹ Dừng Sturdy Rod"
+	currentThread = task.spawn(function() fishingLoop("Sturdy Rod") end)
+end)
+
 btnTP.MouseButton1Click:Connect(function()
 	local char = player.Character
 	if not char then return end
@@ -155,7 +150,6 @@ btnTP.MouseButton1Click:Connect(function()
 	print("📍 TP đến nơi câu!")
 end)
 
--- Nút TP Sell
 btnSell.MouseButton1Click:Connect(function()
 	local char = player.Character
 	if not char then return end
@@ -163,7 +157,6 @@ btnSell.MouseButton1Click:Connect(function()
 	print("💰 TP đến nơi sell!")
 end)
 
--- Anti AFK
 local afkOn = false
 btnAFK.MouseButton1Click:Connect(function()
 	afkOn = not afkOn
