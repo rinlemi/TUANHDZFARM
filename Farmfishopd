@@ -73,18 +73,20 @@ counterLabel.TextSize = 13
 counterLabel.Font = Enum.Font.GothamBold
 
 -- Fishing loop
-local function fishingLoop(rodName, waitTime)
+local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
 	while running do
 		local char = player.Character or player.CharacterAdded:Wait()
+		-- Thả cần
 		pcall(function()
 			char:WaitForChild(rodName):WaitForChild("Click"):FireServer(
 				vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
 			)
 		end)
-		print("🎣 Thả cần... chờ " .. waitTime .. "s")
-		task.wait(waitTime)
+		print("🎣 Thả cần... chờ 35s")
+		task.wait(35)
 		if not running then break end
+		-- Kéo cần
 		pcall(function()
 			char:WaitForChild(rodName):WaitForChild("Click"):FireServer(
 				vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
@@ -92,15 +94,19 @@ local function fishingLoop(rodName, waitTime)
 		end)
 		task.wait(0.3)
 		if not running then break end
+		-- Start minigame
 		pcall(function() fishing:FireServer("Start", "Easy") end)
 		task.wait(0.2)
+		-- Running 10 lần
 		for i = 1, 10 do
 			if not running then break end
 			pcall(function() fishing:FireServer("Running", "Default") end)
+			print("⚡ Tick " .. i .. "/10")
 			task.wait(0.25)
 		end
 		task.wait(0.5)
 		if not running then break end
+		-- Finish
 		pcall(function() fishing:FireServer("Finish", 10) end)
 		fishCount = fishCount + 1
 		counterLabel.Text = "🐟 Cá câu được: " .. fishCount
@@ -128,7 +134,7 @@ btnSuper.MouseButton1Click:Connect(function()
 	running = true
 	btnSuper.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 	btnSuper.Text = "⏹ Dừng Super Rod"
-	currentThread = task.spawn(function() fishingLoop("Super Rod", 35) end)
+	currentThread = task.spawn(function() fishingLoop("Super Rod") end)
 end)
 
 -- Nút Wood Rod
@@ -138,7 +144,7 @@ btnWood.MouseButton1Click:Connect(function()
 	running = true
 	btnWood.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 	btnWood.Text = "⏹ Dừng Wood Rod"
-	currentThread = task.spawn(function() fishingLoop("Wood Rod", 60) end)
+	currentThread = task.spawn(function() fishingLoop("Wood Rod") end)
 end)
 
 -- Nút TP câu cá
