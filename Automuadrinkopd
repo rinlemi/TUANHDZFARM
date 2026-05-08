@@ -3,7 +3,6 @@ local player = game:GetService("Players").LocalPlayer
 local backpack = player.Backpack
 local remote = workspace.Merchants.BetterDrinkMerchant.Clickable.ShopDrinksPlus.Clicked.Retum
 
--- GUI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 gui.Name = "DrinkShop"
@@ -20,7 +19,6 @@ local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(0, 180, 255)
 stroke.Thickness = 1.5
 
--- Title
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundTransparency = 1
@@ -37,7 +35,6 @@ local drinks = {
 }
 
 local function makeRow(parent, drink, yPos)
-	-- Label
 	local label = Instance.new("TextLabel", parent)
 	label.Size = UDim2.new(0, 90, 0, 36)
 	label.Position = UDim2.new(0, 10, 0, yPos)
@@ -49,7 +46,6 @@ local function makeRow(parent, drink, yPos)
 	label.Font = Enum.Font.GothamBold
 	Instance.new("UICorner", label).CornerRadius = UDim.new(0, 6)
 
-	-- Input
 	local input = Instance.new("TextBox", parent)
 	input.Size = UDim2.new(0, 80, 0, 36)
 	input.Position = UDim2.new(0, 108, 0, yPos)
@@ -62,7 +58,6 @@ local function makeRow(parent, drink, yPos)
 	input.PlaceholderText = "Số lượng"
 	Instance.new("UICorner", input).CornerRadius = UDim.new(0, 6)
 
-	-- Buy button
 	local buyBtn = Instance.new("TextButton", parent)
 	buyBtn.Size = UDim2.new(0, 60, 0, 36)
 	buyBtn.Position = UDim2.new(0, 196, 0, yPos)
@@ -74,7 +69,6 @@ local function makeRow(parent, drink, yPos)
 	buyBtn.Font = Enum.Font.GothamBold
 	Instance.new("UICorner", buyBtn).CornerRadius = UDim.new(0, 6)
 
-	-- Drop button
 	local dropBtn = Instance.new("TextButton", parent)
 	dropBtn.Size = UDim2.new(0, 60, 0, 36)
 	dropBtn.Position = UDim2.new(0, 264, 0, yPos)
@@ -86,24 +80,20 @@ local function makeRow(parent, drink, yPos)
 	dropBtn.Font = Enum.Font.GothamBold
 	Instance.new("UICorner", dropBtn).CornerRadius = UDim.new(0, 6)
 
-	-- Mua logic
 	buyBtn.MouseButton1Click:Connect(function()
 		local amount = tonumber(input.Text) or 10
 		buyBtn.Text = "..."
 		for i = 1, amount do
 			pcall(function() remote:FireServer(drink.name) end)
-			task.wait(0.5)
+			task.wait(0.01)
 		end
 		buyBtn.Text = "Mua"
 		print("✅ Mua " .. amount .. "x " .. drink.name)
 	end)
 
-	-- Drop logic
 	dropBtn.MouseButton1Click:Connect(function()
 		local char = player.Character
 		dropBtn.Text = "..."
-
-		-- Drop hotbar
 		local slots = {
 			Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five,
 			Enum.KeyCode.Six, Enum.KeyCode.Seven, Enum.KeyCode.Eight,
@@ -111,40 +101,35 @@ local function makeRow(parent, drink, yPos)
 		}
 		for _, slot in ipairs(slots) do
 			vrs:SendKeyEvent(true, slot, false, game)
-			task.wait(0.05)
+			task.wait(0.001)
 			vrs:SendKeyEvent(false, slot, false, game)
-			task.wait(0.05)
+			task.wait(0.001)
 			if char:FindFirstChild(drink.name) then
 				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 			end
 		end
-
-		-- Drop backpack
 		for _, item in ipairs(backpack:GetChildren()) do
 			if item.Name == drink.name then
 				item.Parent = char
-				task.wait(0.05)
+				task.wait(0.001)
 				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 			end
 		end
-
 		dropBtn.Text = "Drop"
 		print("✅ Drop hết " .. drink.name)
 	end)
 end
 
--- Tạo từng hàng
 for i, drink in ipairs(drinks) do
 	makeRow(main, drink, 40 + (i-1) * 80)
 end
 
--- Drop All button
 local dropAll = Instance.new("TextButton", main)
 dropAll.Size = UDim2.new(0, 310, 0, 36)
 dropAll.Position = UDim2.new(0, 15, 0, 370)
@@ -168,24 +153,24 @@ dropAll.MouseButton1Click:Connect(function()
 	for _, name in ipairs(allDrinks) do
 		for _, slot in ipairs(slots) do
 			vrs:SendKeyEvent(true, slot, false, game)
-			task.wait(0.05)
+			task.wait(0.001)
 			vrs:SendKeyEvent(false, slot, false, game)
-			task.wait(0.05)
+			task.wait(0.001)
 			if char:FindFirstChild(name) then
 				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 			end
 		end
 		for _, item in ipairs(backpack:GetChildren()) do
 			if item.Name == name then
 				item.Parent = char
-				task.wait(0.05)
+				task.wait(0.001)
 				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game)
-				task.wait(0.05)
+				task.wait(0.001)
 			end
 		end
 	end
