@@ -6,14 +6,16 @@ local player = Players.LocalPlayer
 local fishCount = 0
 local currentThread = nil
 local running = false
+local cacheThread = nil
+local cacheRunning = false
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 gui.Name = "FishingMenu"
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 220, 0, 360)
-main.Position = UDim2.new(0, 10, 0.5, -180)
+main.Size = UDim2.new(0, 220, 0, 450)
+main.Position = UDim2.new(0, 10, 0.5, -225)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 main.BorderSizePixel = 0
 main.Active = true
@@ -23,14 +25,49 @@ local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(0, 180, 255)
 stroke.Thickness = 1.5
 
+-- Toggle button (luôn hiện)
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0, 40, 0, 40)
+toggleBtn.Position = UDim2.new(0, 10, 0.5, -245)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Text = "☰"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 20
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Visible = false
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Size = UDim2.new(1, -45, 0, 40)
 title.Position = UDim2.new(0, 0, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "🎣 FISHING MENU"
 title.TextColor3 = Color3.fromRGB(0, 200, 255)
 title.TextSize = 16
 title.Font = Enum.Font.GothamBold
+
+-- Nút đóng UI
+local closeBtn = Instance.new("TextButton", main)
+closeBtn.Size = UDim2.new(0, 35, 0, 35)
+closeBtn.Position = UDim2.new(1, -40, 0, 3)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 16
+closeBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
+
+closeBtn.MouseButton1Click:Connect(function()
+	main.Visible = false
+	toggleBtn.Visible = true
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+	main.Visible = true
+	toggleBtn.Visible = false
+end)
 
 local function makeButton(parent, text, yPos, color)
 	local btn = Instance.new("TextButton", parent)
@@ -51,11 +88,12 @@ local btnWood   = makeButton(main, "🪵 Wood Rod", 95, Color3.fromRGB(100, 60, 
 local btnSturdy = makeButton(main, "🪨 Sturdy Rod", 142, Color3.fromRGB(80, 80, 80))
 local btnTP     = makeButton(main, "📍 TP Câu Cá", 189, Color3.fromRGB(20, 120, 60))
 local btnSell   = makeButton(main, "💰 TP Sell", 236, Color3.fromRGB(150, 100, 0))
-local btnAFK    = makeButton(main, "💤 Anti AFK: TẮT", 283, Color3.fromRGB(60, 20, 80))
+local btnCache  = makeButton(main, "📦 Auto Cache: TẮT", 283, Color3.fromRGB(60, 20, 80))
+local btnAFK    = makeButton(main, "💤 Anti AFK: TẮT", 330, Color3.fromRGB(60, 20, 80))
 
 local counterFrame = Instance.new("Frame", main)
 counterFrame.Size = UDim2.new(0, 190, 0, 32)
-counterFrame.Position = UDim2.new(0, 15, 0, 322)
+counterFrame.Position = UDim2.new(0, 15, 0, 405)
 counterFrame.BackgroundColor3 = Color3.fromRGB(0, 40, 60)
 counterFrame.BorderSizePixel = 0
 Instance.new("UICorner", counterFrame).CornerRadius = UDim.new(0, 8)
@@ -67,6 +105,64 @@ counterLabel.Text = "🐟 Cá câu được: 0"
 counterLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
 counterLabel.TextSize = 13
 counterLabel.Font = Enum.Font.GothamBold
+
+-- Cache counter
+local cacheFrame = Instance.new("Frame", main)
+cacheFrame.Size = UDim2.new(0, 190, 0, 32)
+cacheFrame.Position = UDim2.new(0, 15, 0, 370)
+cacheFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 0)
+cacheFrame.BorderSizePixel = 0
+Instance.new("UICorner", cacheFrame).CornerRadius = UDim.new(0, 8)
+
+local cacheLabel = Instance.new("TextLabel", cacheFrame)
+cacheLabel.Size = UDim2.new(1, 0, 1, 0)
+cacheLabel.BackgroundTransparency = 1
+cacheLabel.Text = "📦 Cache dùng: 0"
+cacheLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+cacheLabel.TextSize = 13
+cacheLabel.Font = Enum.Font.GothamBold
+
+local cacheCount = 0
+
+-- Auto Cache loop
+local function useAllCache()
+	local char = player.Character
+	if not char then return end
+	local backpack = player.Backpack
+	for _, item in ipairs(backpack:GetChildren()) do
+		if item.Name:find("Cache") then
+			item.Parent = char
+			task.wait(0.3)
+			pcall(function() char:FindFirstChild(item.Name):Activate() end)
+			cacheCount = cacheCount + 1
+			cacheLabel.Text = "📦 Cache dùng: " .. cacheCount
+			task.wait(0.3)
+		end
+	end
+end
+
+local function cacheLoop()
+	while cacheRunning do
+		useAllCache()
+		task.wait(2)
+	end
+end
+
+btnCache.MouseButton1Click:Connect(function()
+	cacheRunning = not cacheRunning
+	if cacheRunning then
+		btnCache.Text = "📦 Auto Cache: BẬT"
+		btnCache.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+		cacheThread = task.spawn(cacheLoop)
+	else
+		btnCache.Text = "📦 Auto Cache: TẮT"
+		btnCache.BackgroundColor3 = Color3.fromRGB(60, 20, 80)
+		if cacheThread then
+			task.cancel(cacheThread)
+			cacheThread = nil
+		end
+	end
+end)
 
 local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
