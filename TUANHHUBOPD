@@ -3,7 +3,7 @@ local player = Players.LocalPlayer
 
 -- GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "IsamiHub"
+gui.Name = "TUANHHub"
 gui.ResetOnSpawn = false
 gui.Parent = game:GetService("CoreGui")
 
