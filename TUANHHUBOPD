@@ -219,44 +219,68 @@ end
 
 -- ===================== HELPER =====================
 local function makeBtn(parent, text, color)
+	local baseColor = color or Color3.fromRGB(10, 60, 140)
 	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(1, -20, 0, 40)
-	btn.BackgroundColor3 = color or Color3.fromRGB(30, 80, 150)
+	btn.Size = UDim2.new(1, -24, 0, 42)
+	btn.BackgroundColor3 = baseColor
 	btn.BorderSizePixel = 0
 	btn.Text = text
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 13
+	btn.TextSize = 14
 	btn.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	btn.AutoButtonColor = false
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+	local s = Instance.new("UIStroke", btn)
+	s.Color = Color3.fromRGB(0, 170, 255)
+	s.Thickness = 1.5
 	local pad = Instance.new("UIPadding", btn)
-	pad.PaddingLeft = UDim.new(0, 10)
+	pad.PaddingLeft = UDim.new(0, 12)
+	-- Hover effect
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.15), {
+			BackgroundColor3 = Color3.new(
+				math.min(baseColor.R + 0.08, 1),
+				math.min(baseColor.G + 0.08, 1),
+				math.min(baseColor.B + 0.08, 1)
+			)
+		}):Play()
+		TweenService:Create(s, TweenInfo.new(0.15), {Thickness = 2.5}):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = btn.BackgroundColor3}):Play()
+		TweenService:Create(s, TweenInfo.new(0.15), {Thickness = 1.5}):Play()
+	end)
 	return btn
 end
 
 local function makeLabel(parent, text, color)
 	local lbl = Instance.new("TextLabel", parent)
-	lbl.Size = UDim2.new(1, -20, 0, 30)
-	lbl.BackgroundColor3 = color or Color3.fromRGB(0, 40, 60)
+	lbl.Size = UDim2.new(1, -24, 0, 34)
+	lbl.BackgroundColor3 = color or Color3.fromRGB(4, 18, 38)
 	lbl.BorderSizePixel = 0
 	lbl.Text = text
-	lbl.TextColor3 = Color3.fromRGB(150, 255, 200)
-	lbl.TextSize = 12
+	lbl.TextColor3 = Color3.fromRGB(0, 200, 255)
+	lbl.TextSize = 13
 	lbl.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 6)
+	Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 10)
+	local s = Instance.new("UIStroke", lbl)
+	s.Color = Color3.fromRGB(0, 120, 255)
+	s.Thickness = 1
 	return lbl
 end
 
 local function makeSep(parent)
 	local sep = Instance.new("Frame", parent)
-	sep.Size = UDim2.new(1, -20, 0, 2)
-	sep.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+	sep.Size = UDim2.new(1, -24, 0, 1)
+	sep.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
 	sep.BorderSizePixel = 0
+	sep.BackgroundTransparency = 0.5
 	return sep
 end
 
 local function makePad(parent)
 	local p = Instance.new("Frame", parent)
-	p.Size = UDim2.new(1, 0, 0, 4)
+	p.Size = UDim2.new(1, 0, 0, 6)
 	p.BackgroundTransparency = 1
 	return p
 end
@@ -390,52 +414,74 @@ makePad(drinkTab)
 
 for _, drink in ipairs(drinks) do
 	local dHeader = Instance.new("Frame", drinkTab)
-	dHeader.Size = UDim2.new(1, -20, 0, 40)
-	dHeader.BackgroundColor3 = drink.color
+	dHeader.Size = UDim2.new(1, -24, 0, 48)
+	dHeader.BackgroundColor3 = Color3.fromRGB(4, 14, 30)
 	dHeader.BorderSizePixel = 0
-	Instance.new("UICorner", dHeader).CornerRadius = UDim.new(0, 8)
+	Instance.new("UICorner", dHeader).CornerRadius = UDim.new(0, 12)
+	local dStroke = Instance.new("UIStroke", dHeader)
+	dStroke.Color = drink.color
+	dStroke.Thickness = 1.5
+
+	local colorDot = Instance.new("Frame", dHeader)
+	colorDot.Size = UDim2.new(0, 8, 0, 28)
+	colorDot.Position = UDim2.new(0, 10, 0.5, -14)
+	colorDot.BackgroundColor3 = drink.color
+	colorDot.BorderSizePixel = 0
+	Instance.new("UICorner", colorDot).CornerRadius = UDim.new(0, 4)
 
 	local dName = Instance.new("TextLabel", dHeader)
 	dName.Size = UDim2.new(0, 100, 1, 0)
-	dName.Position = UDim2.new(0, 10, 0, 0)
+	dName.Position = UDim2.new(0, 26, 0, 0)
 	dName.BackgroundTransparency = 1
 	dName.Text = drink.name
 	dName.TextColor3 = Color3.fromRGB(255, 255, 255)
 	dName.TextSize = 13
 	dName.Font = Enum.Font.GothamBold
+	dName.TextXAlignment = Enum.TextXAlignment.Left
 
 	local dInput = Instance.new("TextBox", dHeader)
-	dInput.Size = UDim2.new(0, 80, 0, 28)
-	dInput.Position = UDim2.new(0, 115, 0, 6)
-	dInput.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+	dInput.Size = UDim2.new(0, 72, 0, 30)
+	dInput.Position = UDim2.new(0, 130, 0.5, -15)
+	dInput.BackgroundColor3 = Color3.fromRGB(6, 20, 45)
 	dInput.BorderSizePixel = 0
 	dInput.Text = "50"
-	dInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+	dInput.TextColor3 = Color3.fromRGB(0, 200, 255)
 	dInput.TextSize = 13
 	dInput.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", dInput).CornerRadius = UDim.new(0, 6)
+	Instance.new("UICorner", dInput).CornerRadius = UDim.new(0, 8)
+	local dInputStroke = Instance.new("UIStroke", dInput)
+	dInputStroke.Color = Color3.fromRGB(0, 120, 255)
+	dInputStroke.Thickness = 1
 
 	local dBuy = Instance.new("TextButton", dHeader)
-	dBuy.Size = UDim2.new(0, 70, 0, 28)
-	dBuy.Position = UDim2.new(0, 200, 0, 6)
-	dBuy.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	dBuy.Size = UDim2.new(0, 75, 0, 30)
+	dBuy.Position = UDim2.new(0, 210, 0.5, -15)
+	dBuy.BackgroundColor3 = Color3.fromRGB(0, 110, 0)
 	dBuy.BorderSizePixel = 0
 	dBuy.Text = "🛒 Mua"
 	dBuy.TextColor3 = Color3.fromRGB(255, 255, 255)
 	dBuy.TextSize = 12
 	dBuy.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", dBuy).CornerRadius = UDim.new(0, 6)
+	dBuy.AutoButtonColor = false
+	Instance.new("UICorner", dBuy).CornerRadius = UDim.new(0, 9)
+	local dBuyStroke = Instance.new("UIStroke", dBuy)
+	dBuyStroke.Color = Color3.fromRGB(0, 200, 80)
+	dBuyStroke.Thickness = 1
 
 	local dDrop = Instance.new("TextButton", dHeader)
-	dDrop.Size = UDim2.new(0, 70, 0, 28)
-	dDrop.Position = UDim2.new(0, 278, 0, 6)
-	dDrop.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+	dDrop.Size = UDim2.new(0, 75, 0, 30)
+	dDrop.Position = UDim2.new(0, 293, 0.5, -15)
+	dDrop.BackgroundColor3 = Color3.fromRGB(130, 0, 0)
 	dDrop.BorderSizePixel = 0
 	dDrop.Text = "🗑️ Drop"
 	dDrop.TextColor3 = Color3.fromRGB(255, 255, 255)
 	dDrop.TextSize = 12
 	dDrop.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", dDrop).CornerRadius = UDim.new(0, 6)
+	dDrop.AutoButtonColor = false
+	Instance.new("UICorner", dDrop).CornerRadius = UDim.new(0, 9)
+	local dDropStroke = Instance.new("UIStroke", dDrop)
+	dDropStroke.Color = Color3.fromRGB(255, 80, 80)
+	dDropStroke.Thickness = 1
 
 	dBuy.MouseButton1Click:Connect(function()
 		local amount = tonumber(dInput.Text) or 50
