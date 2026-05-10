@@ -1,104 +1,94 @@
--- ===================== MODERN GUI =====================
-local gui = Instance.new("ScreenGui")
-gui.Parent = game:GetService("CoreGui")
-gui.ResetOnSpawn = false
-gui.Name = "ISamiHub"
+local RS = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
--- Blur nền
-local blur = Instance.new("BlurEffect")
-blur.Size = 12
-blur.Parent = game:GetService("Lighting")
+local player = Players.LocalPlayer
+local fishing = RS:WaitForChild("Fishing")
 
--- Toggle nhỏ
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Parent = gui
-toggleBtn.Size = UDim2.new(0,50,0,50)
-toggleBtn.Position = UDim2.new(0,15,0.5,-25)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(15,15,25)
-toggleBtn.Text = "⚡"
-toggleBtn.TextColor3 = Color3.fromRGB(0,170,255)
-toggleBtn.TextSize = 26
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.BorderSizePixel = 0
-toggleBtn.Visible = false
-Instance.new("UICorner",toggleBtn).CornerRadius = UDim.new(1,0)
+while true do
+	local char = player.Character or player.CharacterAdded:Wait()
 
-local toggleStroke = Instance.new("UIStroke",toggleBtn)
-toggleStroke.Color = Color3.fromRGB(0,170,255)
-toggleStroke.Thickness = 2
+	-- 🔍 Tìm cần câu đang có
+	local rod =
+		char:FindFirstChild("Wood Rod") or
+		char:FindFirstChild("Super Rod") or
+		char:FindFirstChild("Sturdy Rod") or
+		player.Backpack:FindFirstChild("Wood Rod") or
+		player.Backpack:FindFirstChild("Super Rod") or
+		player.Backpack:FindFirstChild("Sturdy Rod")
 
--- Main
-local main = Instance.new("Frame")
-main.Parent = gui
-main.Size = UDim2.new(0,620,0,430)
-main.Position = UDim2.new(0.5,-310,0.5,-215)
-main.BackgroundColor3 = Color3.fromRGB(12,12,20)
-main.BorderSizePixel = 0
-main.Active = true
-main.Draggable = true
-Instance.new("UICorner",main).CornerRadius = UDim.new(0,18)
+	-- 📌 Nếu cần ở Backpack thì equip
+	if rod and rod.Parent == player.Backpack then
+		rod.Parent = char
+		task.wait(0.5)
+	end
 
-local mainStroke = Instance.new("UIStroke",main)
-mainStroke.Color = Color3.fromRGB(0,170,255)
-mainStroke.Thickness = 2
-mainStroke.Transparency = 0.2
+	-- ❌ Không có cần
+	if not rod then
+		warn("Không tìm thấy cần câu!")
+		task.wait(3)
+		continue
+	end
 
-local gradient = Instance.new("UIGradient",main)
-gradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(20,20,35)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(8,8,15))
-})
-gradient.Rotation = 90
+	---------------------------------------------------
+	-- 🎣 THẢ CẦN
+	---------------------------------------------------
+	pcall(function()
+		rod:WaitForChild("Click"):FireServer(
+			Vector3.new(7747.935546875, -5617.28759765625, 4095.056396484375)
+		)
+	end)
 
--- Header
-local header = Instance.new("Frame")
-header.Parent = main
-header.Size = UDim2.new(1,0,0,55)
-header.BackgroundColor3 = Color3.fromRGB(15,15,25)
-header.BorderSizePixel = 0
-Instance.new("UICorner",header).CornerRadius = UDim.new(0,18)
+	print("🎣 Thả cần...")
+	task.wait(60)
 
-local headerLine = Instance.new("Frame")
-headerLine.Parent = header
-headerLine.Size = UDim2.new(1,0,0,2)
-headerLine.Position = UDim2.new(0,0,1,-2)
-headerLine.BackgroundColor3 = Color3.fromRGB(0,170,255)
-headerLine.BorderSizePixel = 0
+	---------------------------------------------------
+	-- 🎯 KÉO MINI GAME
+	---------------------------------------------------
+	pcall(function()
+		rod:WaitForChild("Click"):FireServer(
+			Vector3.new(7747.935546875, -5617.28759765625, 4095.056396484375)
+		)
+	end)
 
-local logo = Instance.new("TextLabel")
-logo.Parent = header
-logo.BackgroundTransparency = 1
-logo.Position = UDim2.new(0,18,0,0)
-logo.Size = UDim2.new(0,300,1,0)
-logo.Font = Enum.Font.GothamBlack
-logo.Text = "⚡ ISami Hub"
-logo.TextSize = 24
-logo.TextColor3 = Color3.fromRGB(255,255,255)
-logo.TextXAlignment = Enum.TextXAlignment.Left
+	task.wait(0.2)
 
-local sub = Instance.new("TextLabel")
-sub.Parent = header
-sub.BackgroundTransparency = 1
-sub.Position = UDim2.new(0,190,0,0)
-sub.Size = UDim2.new(0,220,1,0)
-sub.Font = Enum.Font.Gotham
-sub.Text = "Premium Fishing Utility"
-sub.TextSize = 12
-sub.TextColor3 = Color3.fromRGB(120,120,140)
-sub.TextXAlignment = Enum.TextXAlignment.Left
+	---------------------------------------------------
+	-- 🎮 START MINI GAME
+	---------------------------------------------------
+	pcall(function()
+		fishing:FireServer("Start", "Easy")
+	end)
 
--- Close
-local closeBtn = Instance.new("TextButton")
-closeBtn.Parent = header
-closeBtn.Size = UDim2.new(0,38,0,38)
-closeBtn.Position = UDim2.new(1,-48,0.5,-19)
-closeBtn.BackgroundColor3 = Color3.fromRGB(25,25,35)
-closeBtn.BorderSizePixel = 0
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255,80,80)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 18
-Instance.new("UICorner",closeBtn).CornerRadius = UDim.new(1,0)
+	print("🎮 Start Minigame")
 
-local closeStroke = Instance.new("UIStroke",closeBtn)
+	task.wait(0.1)
+
+	---------------------------------------------------
+	-- ⚡ SPAM RUNNING NHANH
+	---------------------------------------------------
+	for i = 1, 10 do
+		pcall(function()
+			fishing:FireServer("Running", "Default")
+		end)
+
+		print("⚡ Tick "..i.."/10")
+
+		task.wait(0.05)
+	end
+
+	---------------------------------------------------
+	-- ✅ FINISH
+	---------------------------------------------------
+	task.wait(0.15)
+
+	pcall(function()
+		fishing:FireServer("Finish", 10)
+	end)
+
+	print("✅ Nhận cá!")
+
+	---------------------------------------------------
+	-- ⏳ ĐỢI CHU KỲ SAU
+	---------------------------------------------------
+	task.wait(2)
 end
