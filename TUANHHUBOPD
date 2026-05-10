@@ -1,94 +1,174 @@
-local RS = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-
 local player = Players.LocalPlayer
-local fishing = RS:WaitForChild("Fishing")
 
-while true do
-	local char = player.Character or player.CharacterAdded:Wait()
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "IsamiHub"
+gui.ResetOnSpawn = false
+gui.Parent = game:GetService("CoreGui")
 
-	-- 🔍 Tìm cần câu đang có
-	local rod =
-		char:FindFirstChild("Wood Rod") or
-		char:FindFirstChild("Super Rod") or
-		char:FindFirstChild("Sturdy Rod") or
-		player.Backpack:FindFirstChild("Wood Rod") or
-		player.Backpack:FindFirstChild("Super Rod") or
-		player.Backpack:FindFirstChild("Sturdy Rod")
+-- MAIN
+local main = Instance.new("Frame")
+main.Parent = gui
+main.Size = UDim2.new(0, 700, 0, 430)
+main.Position = UDim2.new(0.5, -350, 0.5, -215)
+main.BackgroundColor3 = Color3.fromRGB(4, 10, 20)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
 
-	-- 📌 Nếu cần ở Backpack thì equip
-	if rod and rod.Parent == player.Backpack then
-		rod.Parent = char
-		task.wait(0.5)
-	end
+local mainCorner = Instance.new("UICorner", main)
+mainCorner.CornerRadius = UDim.new(0, 18)
 
-	-- ❌ Không có cần
-	if not rod then
-		warn("Không tìm thấy cần câu!")
-		task.wait(3)
-		continue
-	end
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(0, 170, 255)
+stroke.Thickness = 2
 
-	---------------------------------------------------
-	-- 🎣 THẢ CẦN
-	---------------------------------------------------
-	pcall(function()
-		rod:WaitForChild("Click"):FireServer(
-			Vector3.new(7747.935546875, -5617.28759765625, 4095.056396484375)
-		)
-	end)
+local glow = Instance.new("ImageLabel")
+glow.Parent = main
+glow.BackgroundTransparency = 1
+glow.Size = UDim2.new(1, 40, 1, 40)
+glow.Position = UDim2.new(0, -20, 0, -20)
+glow.Image = "rbxassetid://4996891970"
+glow.ImageTransparency = 0.4
+glow.ScaleType = Enum.ScaleType.Slice
+glow.SliceCenter = Rect.new(20,20,280,280)
 
-	print("🎣 Thả cần...")
-	task.wait(60)
+-- HEADER
+local header = Instance.new("Frame")
+header.Parent = main
+header.Size = UDim2.new(1, 0, 0, 60)
+header.BackgroundColor3 = Color3.fromRGB(0, 20, 40)
+header.BorderSizePixel = 0
 
-	---------------------------------------------------
-	-- 🎯 KÉO MINI GAME
-	---------------------------------------------------
-	pcall(function()
-		rod:WaitForChild("Click"):FireServer(
-			Vector3.new(7747.935546875, -5617.28759765625, 4095.056396484375)
-		)
-	end)
+local headerCorner = Instance.new("UICorner", header)
+headerCorner.CornerRadius = UDim.new(0, 18)
 
-	task.wait(0.2)
+local title = Instance.new("TextLabel")
+title.Parent = header
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0, 20, 0, 0)
+title.Size = UDim2.new(1, -80, 1, 0)
+title.Font = Enum.Font.GothamBold
+title.Text = "⚡ ISAMI HUB"
+title.TextSize = 24
+title.TextColor3 = Color3.fromRGB(0, 170, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
 
-	---------------------------------------------------
-	-- 🎮 START MINI GAME
-	---------------------------------------------------
-	pcall(function()
-		fishing:FireServer("Start", "Easy")
-	end)
+-- CLOSE
+local close = Instance.new("TextButton")
+close.Parent = header
+close.Size = UDim2.new(0, 38, 0, 38)
+close.Position = UDim2.new(1, -48, 0, 11)
+close.BackgroundColor3 = Color3.fromRGB(15, 25, 40)
+close.Text = "✕"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 18
+close.TextColor3 = Color3.fromRGB(255,255,255)
+close.BorderSizePixel = 0
 
-	print("🎮 Start Minigame")
+local closeCorner = Instance.new("UICorner", close)
+closeCorner.CornerRadius = UDim.new(0, 10)
 
-	task.wait(0.1)
+local closeStroke = Instance.new("UIStroke", close)
+closeStroke.Color = Color3.fromRGB(0,170,255)
 
-	---------------------------------------------------
-	-- ⚡ SPAM RUNNING NHANH
-	---------------------------------------------------
-	for i = 1, 10 do
-		pcall(function()
-			fishing:FireServer("Running", "Default")
-		end)
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
 
-		print("⚡ Tick "..i.."/10")
+-- TAB BAR
+local tabBar = Instance.new("Frame")
+tabBar.Parent = main
+tabBar.Position = UDim2.new(0, 15, 0, 75)
+tabBar.Size = UDim2.new(1, -30, 0, 50)
+tabBar.BackgroundColor3 = Color3.fromRGB(5, 15, 30)
+tabBar.BorderSizePixel = 0
 
-		task.wait(0.05)
-	end
+local tabCorner = Instance.new("UICorner", tabBar)
+tabCorner.CornerRadius = UDim.new(0, 14)
 
-	---------------------------------------------------
-	-- ✅ FINISH
-	---------------------------------------------------
-	task.wait(0.15)
+local tabStroke = Instance.new("UIStroke", tabBar)
+tabStroke.Color = Color3.fromRGB(0,170,255)
+tabStroke.Transparency = 0.5
 
-	pcall(function()
-		fishing:FireServer("Finish", 10)
-	end)
+-- CONTENT
+local content = Instance.new("Frame")
+content.Parent = main
+content.Position = UDim2.new(0, 15, 0, 140)
+content.Size = UDim2.new(1, -30, 1, -155)
+content.BackgroundColor3 = Color3.fromRGB(3, 8, 18)
+content.BorderSizePixel = 0
 
-	print("✅ Nhận cá!")
+local contentCorner = Instance.new("UICorner", content)
+contentCorner.CornerRadius = UDim.new(0, 14)
 
-	---------------------------------------------------
-	-- ⏳ ĐỢI CHU KỲ SAU
-	---------------------------------------------------
-	task.wait(2)
+local contentStroke = Instance.new("UIStroke", content)
+contentStroke.Color = Color3.fromRGB(0,170,255)
+contentStroke.Transparency = 0.6
+
+-- GRID EFFECT
+for i = 1, 15 do
+	local line = Instance.new("Frame")
+	line.Parent = content
+	line.BackgroundColor3 = Color3.fromRGB(0, 80, 140)
+	line.BorderSizePixel = 0
+	line.BackgroundTransparency = 0.9
+	line.Size = UDim2.new(1, 0, 0, 1)
+	line.Position = UDim2.new(0, 0, 0, i * 20)
 end
+
+for i = 1, 25 do
+	local dot = Instance.new("Frame")
+	dot.Parent = content
+	dot.Size = UDim2.new(0, 3, 0, 3)
+	dot.Position = UDim2.new(math.random(),0,math.random(),0)
+	dot.BackgroundColor3 = Color3.fromRGB(0,170,255)
+	dot.BorderSizePixel = 0
+	dot.BackgroundTransparency = 0.5
+	
+	local c = Instance.new("UICorner", dot)
+	c.CornerRadius = UDim.new(1,0)
+end
+
+-- TABS
+local tabs = {
+	"🐟 Auto Fish",
+	"🥤 Auto Drink",
+	"⚡ Auto Haki",
+	"💤 Auto AFK"
+}
+
+for i,v in pairs(tabs) do
+	local btn = Instance.new("TextButton")
+	btn.Parent = tabBar
+	btn.Size = UDim2.new(0, 150, 0, 36)
+	btn.Position = UDim2.new(0, 10 + ((i-1) * 165), 0, 7)
+	btn.BackgroundColor3 = i == 1 and Color3.fromRGB(0,100,255) or Color3.fromRGB(10,20,35)
+	btn.BorderSizePixel = 0
+	btn.Font = Enum.Font.GothamBold
+	btn.Text = v
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+
+	local btnCorner = Instance.new("UICorner", btn)
+	btnCorner.CornerRadius = UDim.new(0, 10)
+
+	local btnStroke = Instance.new("UIStroke", btn)
+	btnStroke.Color = Color3.fromRGB(0,170,255)
+	btnStroke.Transparency = 0.5
+
+	btn.MouseEnter:Connect(function()
+		if btn.BackgroundColor3 ~= Color3.fromRGB(0,100,255) then
+			btn.BackgroundColor3 = Color3.fromRGB(15,35,60)
+		end
+	end)
+
+	btn.MouseLeave:Connect(function()
+		if btn.BackgroundColor3 ~= Color3.fromRGB(0,100,255) then
+			btn.BackgroundColor3 = Color3.fromRGB(10,20,35)
+		end
+	end)
+end
+
+print("✅ ISAMI HUB UI LOAD")
