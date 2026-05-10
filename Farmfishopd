@@ -1,80 +1,62 @@
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
 local RS = game:GetService("ReplicatedStorage")
-local vrs = game:GetService("VirtualInputManager")
 local player = Players.LocalPlayer
 
--- State
 local fishCount = 0
 local cacheCount = 0
-local currentFishThread = nil
+local currentThread = nil
 local cacheThread = nil
-local hakiThreads = {}
 local running = false
 local cacheRunning = false
-local afkOn = false
 
--- Remote drink shop
-local drinkRemote = workspace.Merchants.BetterDrinkMerchant.Clickable.ShopDrinksPlus.Clicked.Retum
-
--- ===================== GUI =====================
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
-gui.Name = "MainHub"
+gui.Name = "FishingMenu"
 
--- Toggle button
 local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 45, 0, 45)
-toggleBtn.Position = UDim2.new(0, 10, 0.5, -22)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+toggleBtn.Size = UDim2.new(0, 40, 0, 40)
+toggleBtn.Position = UDim2.new(0, 10, 0.5, -20)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
 toggleBtn.BorderSizePixel = 0
 toggleBtn.Text = "☰"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 22
+toggleBtn.TextSize = 20
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.Visible = false
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
 
--- Main window
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 700, 0, 500)
-main.Position = UDim2.new(0.5, -350, 0.5, -250)
-main.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+main.Size = UDim2.new(0, 420, 0, 260)
+main.Position = UDim2.new(0, 10, 0.5, -130)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 main.BorderSizePixel = 0
 main.Active = true
 main.Draggable = true
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(0, 150, 255)
-stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(0, 180, 255)
+stroke.Thickness = 1.5
 
--- Header
-local header = Instance.new("Frame", main)
-header.Size = UDim2.new(1, 0, 0, 50)
-header.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-header.BorderSizePixel = 0
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 14)
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, -45, 0, 36)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "🎣 FISHING MENU"
+title.TextColor3 = Color3.fromRGB(0, 200, 255)
+title.TextSize = 15
+title.Font = Enum.Font.GothamBold
 
-local headerTitle = Instance.new("TextLabel", header)
-headerTitle.Size = UDim2.new(1, -50, 1, 0)
-headerTitle.Position = UDim2.new(0, 10, 0, 0)
-headerTitle.BackgroundTransparency = 1
-headerTitle.Text = "⚡ ISami Hub"
-headerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-headerTitle.TextSize = 20
-headerTitle.Font = Enum.Font.GothamBold
-headerTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local closeBtn = Instance.new("TextButton", header)
-closeBtn.Size = UDim2.new(0, 40, 0, 40)
-closeBtn.Position = UDim2.new(1, -45, 0, 5)
+local closeBtn = Instance.new("TextButton", main)
+closeBtn.Size = UDim2.new(0, 35, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 3)
 closeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 closeBtn.BorderSizePixel = 0
 closeBtn.Text = "✕"
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextSize = 16
+closeBtn.TextSize = 14
 closeBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
 closeBtn.MouseButton1Click:Connect(function()
 	main.Visible = false
@@ -85,208 +67,55 @@ toggleBtn.MouseButton1Click:Connect(function()
 	toggleBtn.Visible = false
 end)
 
--- Tab bar
-local tabBar = Instance.new("Frame", main)
-tabBar.Size = UDim2.new(1, -20, 0, 40)
-tabBar.Position = UDim2.new(0, 10, 0, 55)
-tabBar.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-tabBar.BorderSizePixel = 0
-Instance.new("UICorner", tabBar).CornerRadius = UDim.new(0, 10)
-
--- Content area
-local content = Instance.new("Frame", main)
-content.Size = UDim2.new(1, -20, 1, -110)
-content.Position = UDim2.new(0, 10, 0, 100)
-content.BackgroundColor3 = Color3.fromRGB(15, 15, 28)
-content.BorderSizePixel = 0
-Instance.new("UICorner", content).CornerRadius = UDim.new(0, 10)
-
--- ===================== TAB SYSTEM =====================
-local tabs = {}
-local tabContents = {}
-local activeTab = nil
-
-local tabNames = {"🎣 Auto Fish", "🥤 Auto Drop Drink", "⚡ Auto Haki", "💤 Auto AFK"}
-local tabColors = {
-	Color3.fromRGB(0, 120, 200),
-	Color3.fromRGB(180, 80, 20),
-	Color3.fromRGB(150, 0, 200),
-	Color3.fromRGB(0, 140, 0),
-}
-
-local function makeTabContent()
-	local frame = Instance.new("ScrollingFrame", content)
-	frame.Size = UDim2.new(1, 0, 1, 0)
-	frame.BackgroundTransparency = 1
-	frame.BorderSizePixel = 0
-	frame.ScrollBarThickness = 4
-	frame.Visible = false
-	Instance.new("UIListLayout", frame).Padding = UDim.new(0, 8)
-	return frame
-end
-
-local function switchTab(name)
-	for n, f in pairs(tabContents) do
-		f.Visible = (n == name)
-	end
-	for n, btn in pairs(tabs) do
-		if n == name then
-			btn.BackgroundColor3 = tabColors[table.find(tabNames, n)] or Color3.fromRGB(0, 120, 200)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		else
-			btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-			btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-		end
-	end
-	activeTab = name
-end
-
-local tabWidth = math.floor(680 / #tabNames)
-for i, name in ipairs(tabNames) do
-	local btn = Instance.new("TextButton", tabBar)
-	btn.Size = UDim2.new(0, tabWidth - 5, 0, 32)
-	btn.Position = UDim2.new(0, (i-1) * tabWidth + 5, 0, 4)
-	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-	btn.BorderSizePixel = 0
-	btn.Text = name
-	btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-	btn.TextSize = 12
-	btn.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	tabs[name] = btn
-	tabContents[name] = makeTabContent()
-	btn.MouseButton1Click:Connect(function() switchTab(name) end)
-end
-
--- ===================== HELPER =====================
-local function makeBtn(parent, text, color)
+local function makeButton(parent, text, x, y, color)
 	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(1, -20, 0, 40)
-	btn.BackgroundColor3 = color or Color3.fromRGB(30, 80, 150)
+	btn.Size = UDim2.new(0, 185, 0, 35)
+	btn.Position = UDim2.new(0, x, 0, y)
+	btn.BackgroundColor3 = color or Color3.fromRGB(30, 30, 50)
 	btn.BorderSizePixel = 0
 	btn.Text = text
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 13
+	btn.TextSize = 12
 	btn.Font = Enum.Font.GothamBold
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	local pad = Instance.new("UIPadding", btn)
-	pad.PaddingLeft = UDim.new(0, 10)
 	return btn
 end
 
-local function makeLabel(parent, text, color)
-	local lbl = Instance.new("TextLabel", parent)
-	lbl.Size = UDim2.new(1, -20, 0, 30)
-	lbl.BackgroundColor3 = color or Color3.fromRGB(0, 40, 60)
-	lbl.BorderSizePixel = 0
-	lbl.Text = text
-	lbl.TextColor3 = Color3.fromRGB(150, 255, 200)
-	lbl.TextSize = 12
-	lbl.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 6)
-	return lbl
-end
+local btnSuper  = makeButton(main, "🎣 Super Rod", 10, 42, Color3.fromRGB(30, 80, 150))
+local btnWood   = makeButton(main, "🪵 Wood Rod", 10, 82, Color3.fromRGB(100, 60, 20))
+local btnSturdy = makeButton(main, "🪨 Sturdy Rod", 10, 122, Color3.fromRGB(80, 80, 80))
+local btnTP     = makeButton(main, "📍 TP Câu Cá", 10, 162, Color3.fromRGB(20, 120, 60))
+local btnSell   = makeButton(main, "💰 TP Sell", 10, 202, Color3.fromRGB(150, 100, 0))
+local btnCache  = makeButton(main, "📦 Auto Cache: TẮT", 225, 42, Color3.fromRGB(60, 20, 80))
+local btnAFK    = makeButton(main, "💤 Anti AFK: TẮT", 225, 82, Color3.fromRGB(60, 20, 80))
 
-local function makeSep(parent)
-	local sep = Instance.new("Frame", parent)
-	sep.Size = UDim2.new(1, -20, 0, 2)
-	sep.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
-	sep.BorderSizePixel = 0
-	return sep
-end
+local counterFrame = Instance.new("Frame", main)
+counterFrame.Size = UDim2.new(0, 185, 0, 30)
+counterFrame.Position = UDim2.new(0, 225, 0, 122)
+counterFrame.BackgroundColor3 = Color3.fromRGB(0, 40, 60)
+counterFrame.BorderSizePixel = 0
+Instance.new("UICorner", counterFrame).CornerRadius = UDim.new(0, 8)
+local counterLabel = Instance.new("TextLabel", counterFrame)
+counterLabel.Size = UDim2.new(1, 0, 1, 0)
+counterLabel.BackgroundTransparency = 1
+counterLabel.Text = "🐟 Cá: 0"
+counterLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+counterLabel.TextSize = 12
+counterLabel.Font = Enum.Font.GothamBold
 
-local function makePad(parent)
-	local p = Instance.new("Frame", parent)
-	p.Size = UDim2.new(1, 0, 0, 4)
-	p.BackgroundTransparency = 1
-	return p
-end
-
--- ===================== TAB 1: AUTO FISH =====================
-local fishTab = tabContents["🎣 Auto Fish"]
-
-makePad(fishTab)
-local fishLabel = makeLabel(fishTab, "🐟 Cá: 0 | 📦 Cache: 0")
-makeSep(fishTab)
-makePad(fishTab)
-
-local btnSuper = makeBtn(fishTab, "🎣 Super Rod: TẮT", Color3.fromRGB(30, 80, 150))
-local btnWood = makeBtn(fishTab, "🪵 Wood Rod: TẮT", Color3.fromRGB(100, 60, 20))
-local btnSturdy = makeBtn(fishTab, "🪨 Sturdy Rod: TẮT", Color3.fromRGB(80, 80, 80))
-makeSep(fishTab)
-makePad(fishTab)
-local btnTP = makeBtn(fishTab, "📍 TP Câu Cá", Color3.fromRGB(20, 120, 60))
-local btnSell = makeBtn(fishTab, "💰 TP Sell Cá", Color3.fromRGB(150, 100, 0))
-makeSep(fishTab)
-makePad(fishTab)
-local btnCache = makeBtn(fishTab, "📦 Auto Cache: TẮT", Color3.fromRGB(60, 20, 80))
-
-local function fishingLoop(rodName)
-	local fishing = RS:WaitForChild("Fishing")
-	while running do
-		local char = player.Character or player.CharacterAdded:Wait()
-		pcall(function()
-			char:WaitForChild(rodName):WaitForChild("Click"):FireServer(
-				vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
-			)
-		end)
-		task.wait(20)
-		if not running then break end
-		pcall(function()
-			char:WaitForChild(rodName):WaitForChild("Click"):FireServer(
-				vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
-			)
-		end)
-		task.wait(0.3)
-		if not running then break end
-		pcall(function() fishing:FireServer("Start", "Easy") end)
-		task.wait(0.2)
-		for i = 1, 10 do
-			if not running then break end
-			pcall(function() fishing:FireServer("Running", "Default") end)
-			task.wait(0.25)
-		end
-		task.wait(0.5)
-		if not running then break end
-		pcall(function() fishing:FireServer("Finish", 10) end)
-		fishCount = fishCount + 1
-		fishLabel.Text = "🐟 Cá: " .. fishCount .. " | 📦 Cache: " .. cacheCount
-	end
-end
-
-local function stopFish()
-	running = false
-	if currentFishThread then task.cancel(currentFishThread) currentFishThread = nil end
-	btnSuper.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
-	btnWood.BackgroundColor3 = Color3.fromRGB(100, 60, 20)
-	btnSturdy.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-	btnSuper.Text = "🎣 Super Rod: TẮT"
-	btnWood.Text = "🪵 Wood Rod: TẮT"
-	btnSturdy.Text = "🪨 Sturdy Rod: TẮT"
-end
-
-local function startFish(rodName, btn, origColor)
-	if running then stopFish() return end
-	stopFish()
-	running = true
-	btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-	btn.Text = "⏹ Dừng " .. rodName
-	currentFishThread = task.spawn(function() fishingLoop(rodName) end)
-end
-
-btnSuper.MouseButton1Click:Connect(function() startFish("Super Rod", btnSuper, Color3.fromRGB(30, 80, 150)) end)
-btnWood.MouseButton1Click:Connect(function() startFish("Wood Rod", btnWood, Color3.fromRGB(100, 60, 20)) end)
-btnSturdy.MouseButton1Click:Connect(function() startFish("Sturdy Rod", btnSturdy, Color3.fromRGB(80, 80, 80)) end)
-
-btnTP.MouseButton1Click:Connect(function()
-	local char = player.Character
-	if char then char.HumanoidRootPart.CFrame = CFrame.new(13802.7, 216.5, -8977.6) end
-end)
-
-btnSell.MouseButton1Click:Connect(function()
-	local char = player.Character
-	if char then char.HumanoidRootPart.CFrame = CFrame.new(1987.3, 215, 567.9) end
-end)
+local cacheFrame = Instance.new("Frame", main)
+cacheFrame.Size = UDim2.new(0, 185, 0, 30)
+cacheFrame.Position = UDim2.new(0, 225, 0, 157)
+cacheFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 0)
+cacheFrame.BorderSizePixel = 0
+Instance.new("UICorner", cacheFrame).CornerRadius = UDim.new(0, 8)
+local cacheLabel = Instance.new("TextLabel", cacheFrame)
+cacheLabel.Size = UDim2.new(1, 0, 1, 0)
+cacheLabel.BackgroundTransparency = 1
+cacheLabel.Text = "📦 Cache: 0"
+cacheLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+cacheLabel.TextSize = 12
+cacheLabel.Font = Enum.Font.GothamBold
 
 local function useAllCache()
 	local char = player.Character
@@ -297,7 +126,7 @@ local function useAllCache()
 			task.wait(0.3)
 			pcall(function() char:FindFirstChild(item.Name):Activate() end)
 			cacheCount = cacheCount + 1
-			fishLabel.Text = "🐟 Cá: " .. fishCount .. " | 📦 Cache: " .. cacheCount
+			cacheLabel.Text = "📦 Cache: " .. cacheCount
 			task.wait(0.3)
 		end
 	end
@@ -309,7 +138,10 @@ btnCache.MouseButton1Click:Connect(function()
 		btnCache.Text = "📦 Auto Cache: BẬT"
 		btnCache.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
 		cacheThread = task.spawn(function()
-			while cacheRunning do useAllCache() task.wait(2) end
+			while cacheRunning do
+				useAllCache()
+				task.wait(2)
+			end
 		end)
 	else
 		btnCache.Text = "📦 Auto Cache: TẮT"
@@ -318,195 +150,119 @@ btnCache.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ===================== TAB 2: AUTO DROP DRINK =====================
-local drinkTab = tabContents["🥤 Auto Drop Drink"]
-local drinks = {
-	{name = "Cider+",    color = Color3.fromRGB(180, 80, 20)},
-	{name = "Lemonade+", color = Color3.fromRGB(180, 180, 0)},
-	{name = "Juice+",    color = Color3.fromRGB(0, 150, 50)},
-	{name = "Smoothie+", color = Color3.fromRGB(150, 0, 150)},
-}
-
-makePad(drinkTab)
-
-for _, drink in ipairs(drinks) do
-	-- Header drink
-	local dHeader = Instance.new("Frame", drinkTab)
-	dHeader.Size = UDim2.new(1, -20, 0, 40)
-	dHeader.BackgroundColor3 = drink.color
-	dHeader.BorderSizePixel = 0
-	Instance.new("UICorner", dHeader).CornerRadius = UDim.new(0, 8)
-
-	local dName = Instance.new("TextLabel", dHeader)
-	dName.Size = UDim2.new(0, 100, 1, 0)
-	dName.Position = UDim2.new(0, 10, 0, 0)
-	dName.BackgroundTransparency = 1
-	dName.Text = drink.name
-	dName.TextColor3 = Color3.fromRGB(255, 255, 255)
-	dName.TextSize = 13
-	dName.Font = Enum.Font.GothamBold
-
-	local dInput = Instance.new("TextBox", dHeader)
-	dInput.Size = UDim2.new(0, 80, 0, 28)
-	dInput.Position = UDim2.new(0, 115, 0, 6)
-	dInput.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-	dInput.BorderSizePixel = 0
-	dInput.Text = "50"
-	dInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-	dInput.TextSize = 13
-	dInput.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", dInput).CornerRadius = UDim.new(0, 6)
-
-	local dBuy = Instance.new("TextButton", dHeader)
-	dBuy.Size = UDim2.new(0, 70, 0, 28)
-	dBuy.Position = UDim2.new(0, 200, 0, 6)
-	dBuy.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-	dBuy.BorderSizePixel = 0
-	dBuy.Text = "🛒 Mua"
-	dBuy.TextColor3 = Color3.fromRGB(255, 255, 255)
-	dBuy.TextSize = 12
-	dBuy.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", dBuy).CornerRadius = UDim.new(0, 6)
-
-	local dDrop = Instance.new("TextButton", dHeader)
-	dDrop.Size = UDim2.new(0, 70, 0, 28)
-	dDrop.Position = UDim2.new(0, 278, 0, 6)
-	dDrop.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-	dDrop.BorderSizePixel = 0
-	dDrop.Text = "🗑️ Drop"
-	dDrop.TextColor3 = Color3.fromRGB(255, 255, 255)
-	dDrop.TextSize = 12
-	dDrop.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", dDrop).CornerRadius = UDim.new(0, 6)
-
-	dBuy.MouseButton1Click:Connect(function()
-		local amount = tonumber(dInput.Text) or 50
-		dBuy.Text = "..."
-		for i = 1, amount do
-			pcall(function() drinkRemote:FireServer(drink.name) end)
-			task.wait(0.01)
+-- ✅ FISHING LOOP ĐÃ SỬA
+local function fishingLoop(rodName)
+	local fishing = RS:WaitForChild("Fishing")
+	while running do
+		-- Luôn lấy char mới nhất mỗi vòng
+		local char = player.Character or player.CharacterAdded:Wait()
+		if not char:FindFirstChild(rodName) and not player.Backpack:FindFirstChild(rodName) then
+			task.wait(1)
+			continue
 		end
-		dBuy.Text = "🛒 Mua"
-	end)
 
-	dDrop.MouseButton1Click:Connect(function()
-		local char = player.Character
-		dDrop.Text = "..."
-		local slots = {Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine,Enum.KeyCode.Zero}
-		for _, slot in ipairs(slots) do
-			vrs:SendKeyEvent(true, slot, false, game) task.wait(0.001)
-			vrs:SendKeyEvent(false, slot, false, game) task.wait(0.001)
-			if char:FindFirstChild(drink.name) then
-				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
-				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
+		-- Thả cần
+		pcall(function()
+			local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
+			if rod then
+				rod:WaitForChild("Click"):FireServer(
+					vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
+				)
 			end
-		end
-		for _, item in ipairs(player.Backpack:GetChildren()) do
-			if item.Name == drink.name then
-				item.Parent = char task.wait(0.001)
-				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
-				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
+		end)
+		print("🎣 Thả cần... chờ 20s")
+		task.wait(20)
+		if not running then break end
+
+		-- Kéo cần - lấy char mới
+		char = player.Character or player.CharacterAdded:Wait()
+		pcall(function()
+			local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
+			if rod then
+				rod:WaitForChild("Click"):FireServer(
+					vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
+				)
 			end
+		end)
+		task.wait(0.5)
+		if not running then break end
+
+		-- Minigame
+		pcall(function() fishing:FireServer("Start", "Easy") end)
+		task.wait(0.3)
+		for i = 1, 10 do
+			if not running then break end
+			pcall(function() fishing:FireServer("Running", "Default") end)
+			task.wait(0.25)
 		end
-		dDrop.Text = "🗑️ Drop"
-	end)
+		task.wait(0.5)
+		if not running then break end
+
+		-- Finish
+		pcall(function() fishing:FireServer("Finish", 10) end)
+		fishCount = fishCount + 1
+		counterLabel.Text = "🐟 Cá: " .. fishCount
+		print("🐟 Nhận cá! Tổng: " .. fishCount)
+		task.wait(3) -- chờ animation câu xong hẳn
+	end
 end
 
-makeSep(drinkTab)
-makePad(drinkTab)
-local dropAllBtn = makeBtn(drinkTab, "🗑️ DROP TẤT CẢ", Color3.fromRGB(150, 0, 0))
-dropAllBtn.MouseButton1Click:Connect(function()
-	local char = player.Character
-	dropAllBtn.Text = "Đang drop..."
-	local slots = {Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine,Enum.KeyCode.Zero}
-	for _, drink in ipairs(drinks) do
-		for _, slot in ipairs(slots) do
-			vrs:SendKeyEvent(true, slot, false, game) task.wait(0.001)
-			vrs:SendKeyEvent(false, slot, false, game) task.wait(0.001)
-			if char:FindFirstChild(drink.name) then
-				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
-				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
-			end
-		end
-		for _, item in ipairs(player.Backpack:GetChildren()) do
-			if item.Name == drink.name then
-				item.Parent = char task.wait(0.001)
-				vrs:SendKeyEvent(true, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
-				vrs:SendKeyEvent(false, Enum.KeyCode.Backspace, false, game) task.wait(0.001)
-			end
-		end
-	end
-	dropAllBtn.Text = "🗑️ DROP TẤT CẢ"
+local function stopAll()
+	running = false
+	if currentThread then task.cancel(currentThread) currentThread = nil end
+	btnSuper.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
+	btnWood.BackgroundColor3 = Color3.fromRGB(100, 60, 20)
+	btnSturdy.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	btnSuper.Text = "🎣 Super Rod"
+	btnWood.Text = "🪵 Wood Rod"
+	btnSturdy.Text = "🪨 Sturdy Rod"
+end
+
+btnSuper.MouseButton1Click:Connect(function()
+	if running then stopAll() return end
+	stopAll() running = true
+	btnSuper.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	btnSuper.Text = "⏹ Dừng Super Rod"
+	currentThread = task.spawn(function() fishingLoop("Super Rod") end)
 end)
 
--- ===================== TAB 3: AUTO HAKI =====================
-local hakiTab = tabContents["⚡ Auto Haki"]
-local userFolder = "User_"..player.UserId
+btnWood.MouseButton1Click:Connect(function()
+	if running then stopAll() return end
+	stopAll() running = true
+	btnWood.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	btnWood.Text = "⏹ Dừng Wood Rod"
+	currentThread = task.spawn(function() fishingLoop("Wood Rod") end)
+end)
 
-local hakiList = {
-	{name = "🔥 Phoenix Slash", id = 229, color = Color3.fromRGB(200, 80, 0)},
-	{name = "⚔️ Thai2006hcm", id = 430, color = Color3.fromRGB(0, 80, 200)},
-	{name = "🌑 Gum Dark", id = 418, color = Color3.fromRGB(80, 0, 150)},
-}
+btnSturdy.MouseButton1Click:Connect(function()
+	if running then stopAll() return end
+	stopAll() running = true
+	btnSturdy.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	btnSturdy.Text = "⏹ Dừng Sturdy Rod"
+	currentThread = task.spawn(function() fishingLoop("Sturdy Rod") end)
+end)
 
-makePad(hakiTab)
-local hakiStatusLabel = makeLabel(hakiTab, "⚡ Haki đang chạy: Không có")
-makeSep(hakiTab)
-makePad(hakiTab)
+btnTP.MouseButton1Click:Connect(function()
+	local char = player.Character
+	if not char then return end
+	char:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(13802.7, 216.5, -8977.6)
+end)
 
-for _, haki in ipairs(hakiList) do
-	local btn = makeBtn(hakiTab, haki.name .. ": TẮT", haki.color)
-	local isOn = false
-	local thread = nil
+btnSell.MouseButton1Click:Connect(function()
+	local char = player.Character
+	if not char then return end
+	char:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(1987.3, 215, 567.9)
+end)
 
-	btn.MouseButton1Click:Connect(function()
-		isOn = not isOn
-		if isOn then
-			btn.Text = "⏹ " .. haki.name .. ": BẬT"
-			btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-			hakiStatusLabel.Text = "⚡ Đang chạy: " .. haki.name
-			thread = task.spawn(function()
-				while isOn do
-					pcall(function()
-						workspace:WaitForChild("UserData")
-							:WaitForChild(userFolder)
-							:WaitForChild("III")
-							:FireServer("On", haki.id)
-					end)
-					task.wait(20)
-				end
-			end)
-		else
-			isOn = false
-			btn.Text = haki.name .. ": TẮT"
-			btn.BackgroundColor3 = haki.color
-			hakiStatusLabel.Text = "⚡ Haki đang chạy: Không có"
-			if thread then task.cancel(thread) thread = nil end
-		end
-	end)
-end
-
--- ===================== TAB 4: AUTO AFK =====================
-local afkTab = tabContents["💤 Auto AFK"]
-
-makePad(afkTab)
-local afkStatus = makeLabel(afkTab, "💤 Anti AFK: TẮT", Color3.fromRGB(40, 0, 60))
-makeSep(afkTab)
-makePad(afkTab)
-local btnAFK = makeBtn(afkTab, "💤 Bật Anti AFK", Color3.fromRGB(60, 20, 80))
-
+local afkOn = false
 btnAFK.MouseButton1Click:Connect(function()
 	afkOn = not afkOn
 	if afkOn then
-		btnAFK.Text = "💤 Tắt Anti AFK"
+		btnAFK.Text = "💤 Anti AFK: BẬT"
 		btnAFK.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-		afkStatus.Text = "💤 Anti AFK: BẬT ✅"
-		afkStatus.BackgroundColor3 = Color3.fromRGB(0, 60, 0)
 	else
-		btnAFK.Text = "💤 Bật Anti AFK"
+		btnAFK.Text = "💤 Anti AFK: TẮT"
 		btnAFK.BackgroundColor3 = Color3.fromRGB(60, 20, 80)
-		afkStatus.Text = "💤 Anti AFK: TẮT"
-		afkStatus.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
 	end
 end)
 
@@ -517,6 +273,4 @@ Players.LocalPlayer.Idled:Connect(function()
 	VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end)
 
--- Mở tab đầu tiên
-switchTab("🎣 Auto Fish")
-print("✅ ISami Hub đã load!")
+print("✅ Fishing Menu đã load!")
