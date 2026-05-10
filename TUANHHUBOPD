@@ -1,174 +1,101 @@
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
+
+-- REMOVE OLD
+pcall(function()
+    game.CoreGui:FindFirstChild("IsamiHub"):Destroy()
+end)
 
 -- GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "TUANHHub"
+gui.Name = "IsamiHub"
+gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
-gui.Parent = game:GetService("CoreGui")
 
 -- MAIN
-local main = Instance.new("Frame")
-main.Parent = gui
-main.Size = UDim2.new(0, 700, 0, 430)
-main.Position = UDim2.new(0.5, -350, 0.5, -215)
-main.BackgroundColor3 = Color3.fromRGB(4, 10, 20)
-main.BorderSizePixel = 0
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 850, 0, 520)
+main.Position = UDim2.new(0.5, -425, 0.5, -260)
+main.BackgroundColor3 = Color3.fromRGB(3, 10, 20)
 main.Active = true
 main.Draggable = true
+main.BorderSizePixel = 0
 
-local mainCorner = Instance.new("UICorner", main)
-mainCorner.CornerRadius = UDim.new(0, 18)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 22)
 
 local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(0, 170, 255)
+stroke.Color = Color3.fromRGB(0,170,255)
 stroke.Thickness = 2
 
-local glow = Instance.new("ImageLabel")
-glow.Parent = main
-glow.BackgroundTransparency = 1
-glow.Size = UDim2.new(1, 40, 1, 40)
-glow.Position = UDim2.new(0, -20, 0, -20)
-glow.Image = "rbxassetid://4996891970"
-glow.ImageTransparency = 0.4
-glow.ScaleType = Enum.ScaleType.Slice
-glow.SliceCenter = Rect.new(20,20,280,280)
-
 -- HEADER
-local header = Instance.new("Frame")
-header.Parent = main
-header.Size = UDim2.new(1, 0, 0, 60)
-header.BackgroundColor3 = Color3.fromRGB(0, 20, 40)
+local header = Instance.new("Frame", main)
+header.Size = UDim2.new(1,0,0,70)
+header.BackgroundColor3 = Color3.fromRGB(0,15,35)
 header.BorderSizePixel = 0
 
-local headerCorner = Instance.new("UICorner", header)
-headerCorner.CornerRadius = UDim.new(0, 18)
+Instance.new("UICorner", header).CornerRadius = UDim.new(0,22)
 
-local title = Instance.new("TextLabel")
-title.Parent = header
+local title = Instance.new("TextLabel", header)
 title.BackgroundTransparency = 1
-title.Position = UDim2.new(0, 20, 0, 0)
-title.Size = UDim2.new(1, -80, 1, 0)
-title.Font = Enum.Font.GothamBold
+title.Position = UDim2.new(0,25,0,0)
+title.Size = UDim2.new(0,300,1,0)
+title.Font = Enum.Font.GothamBlack
 title.Text = "⚡ ISAMI HUB"
-title.TextSize = 24
-title.TextColor3 = Color3.fromRGB(0, 170, 255)
+title.TextSize = 30
+title.TextColor3 = Color3.fromRGB(0,170,255)
 title.TextXAlignment = Enum.TextXAlignment.Left
 
--- CLOSE
-local close = Instance.new("TextButton")
-close.Parent = header
-close.Size = UDim2.new(0, 38, 0, 38)
-close.Position = UDim2.new(1, -48, 0, 11)
-close.BackgroundColor3 = Color3.fromRGB(15, 25, 40)
+-- LOGO
+local logo = Instance.new("ImageLabel", main)
+logo.Size = UDim2.new(0,70,0,70)
+logo.Position = UDim2.new(0.5,-35,0,-35)
+logo.BackgroundColor3 = Color3.fromRGB(20,20,30)
+logo.Image = "rbxassetid://7733960981"
+logo.BorderSizePixel = 0
+Instance.new("UICorner", logo).CornerRadius = UDim.new(1,0)
+
+local ls = Instance.new("UIStroke", logo)
+ls.Color = Color3.fromRGB(80,170,255)
+ls.Thickness = 3
+
+-- CLOSE BUTTON
+local close = Instance.new("TextButton", header)
+close.Size = UDim2.new(0,45,0,45)
+close.Position = UDim2.new(1,-60,0.5,-22)
 close.Text = "✕"
 close.Font = Enum.Font.GothamBold
-close.TextSize = 18
+close.TextSize = 24
 close.TextColor3 = Color3.fromRGB(255,255,255)
+close.BackgroundColor3 = Color3.fromRGB(10,25,45)
 close.BorderSizePixel = 0
 
-local closeCorner = Instance.new("UICorner", close)
-closeCorner.CornerRadius = UDim.new(0, 10)
-
-local closeStroke = Instance.new("UIStroke", close)
-closeStroke.Color = Color3.fromRGB(0,170,255)
+Instance.new("UICorner", close).CornerRadius = UDim.new(0,12)
 
 close.MouseButton1Click:Connect(function()
-	gui:Destroy()
+    gui:Destroy()
 end)
 
--- TAB BAR
-local tabBar = Instance.new("Frame")
-tabBar.Parent = main
-tabBar.Position = UDim2.new(0, 15, 0, 75)
-tabBar.Size = UDim2.new(1, -30, 0, 50)
-tabBar.BackgroundColor3 = Color3.fromRGB(5, 15, 30)
-tabBar.BorderSizePixel = 0
+-- TAB HOLDER
+local tabHolder = Instance.new("Frame", main)
+tabHolder.Position = UDim2.new(0,20,0,90)
+tabHolder.Size = UDim2.new(1,-40,0,70)
+tabHolder.BackgroundColor3 = Color3.fromRGB(5,15,30)
+tabHolder.BorderSizePixel = 0
 
-local tabCorner = Instance.new("UICorner", tabBar)
-tabCorner.CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", tabHolder).CornerRadius = UDim.new(0,20)
 
-local tabStroke = Instance.new("UIStroke", tabBar)
-tabStroke.Color = Color3.fromRGB(0,170,255)
-tabStroke.Transparency = 0.5
+local ths = Instance.new("UIStroke", tabHolder)
+ths.Color = Color3.fromRGB(0,170,255)
 
 -- CONTENT
-local content = Instance.new("Frame")
-content.Parent = main
-content.Position = UDim2.new(0, 15, 0, 140)
-content.Size = UDim2.new(1, -30, 1, -155)
-content.BackgroundColor3 = Color3.fromRGB(3, 8, 18)
+local content = Instance.new("Frame", main)
+content.Position = UDim2.new(0,20,0,180)
+content.Size = UDim2.new(1,-40,1,-200)
+content.BackgroundColor3 = Color3.fromRGB(2,8,18)
 content.BorderSizePixel = 0
 
-local contentCorner = Instance.new("UICorner", content)
-contentCorner.CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", content).CornerRadius = UDim.new(0,20)
 
-local contentStroke = Instance.new("UIStroke", content)
-contentStroke.Color = Color3.fromRGB(0,170,255)
-contentStroke.Transparency = 0.6
-
--- GRID EFFECT
-for i = 1, 15 do
-	local line = Instance.new("Frame")
-	line.Parent = content
-	line.BackgroundColor3 = Color3.fromRGB(0, 80, 140)
-	line.BorderSizePixel = 0
-	line.BackgroundTransparency = 0.9
-	line.Size = UDim2.new(1, 0, 0, 1)
-	line.Position = UDim2.new(0, 0, 0, i * 20)
-end
-
-for i = 1, 25 do
-	local dot = Instance.new("Frame")
-	dot.Parent = content
-	dot.Size = UDim2.new(0, 3, 0, 3)
-	dot.Position = UDim2.new(math.random(),0,math.random(),0)
-	dot.BackgroundColor3 = Color3.fromRGB(0,170,255)
-	dot.BorderSizePixel = 0
-	dot.BackgroundTransparency = 0.5
-	
-	local c = Instance.new("UICorner", dot)
-	c.CornerRadius = UDim.new(1,0)
-end
-
--- TABS
-local tabs = {
-	"🐟 Auto Fish",
-	"🥤 Auto Drink",
-	"⚡ Auto Haki",
-	"💤 Auto AFK"
-}
-
-for i,v in pairs(tabs) do
-	local btn = Instance.new("TextButton")
-	btn.Parent = tabBar
-	btn.Size = UDim2.new(0, 150, 0, 36)
-	btn.Position = UDim2.new(0, 10 + ((i-1) * 165), 0, 7)
-	btn.BackgroundColor3 = i == 1 and Color3.fromRGB(0,100,255) or Color3.fromRGB(10,20,35)
-	btn.BorderSizePixel = 0
-	btn.Font = Enum.Font.GothamBold
-	btn.Text = v
-	btn.TextSize = 14
-	btn.TextColor3 = Color3.fromRGB(255,255,255)
-
-	local btnCorner = Instance.new("UICorner", btn)
-	btnCorner.CornerRadius = UDim.new(0, 10)
-
-	local btnStroke = Instance.new("UIStroke", btn)
-	btnStroke.Color = Color3.fromRGB(0,170,255)
-	btnStroke.Transparency = 0.5
-
-	btn.MouseEnter:Connect(function()
-		if btn.BackgroundColor3 ~= Color3.fromRGB(0,100,255) then
-			btn.BackgroundColor3 = Color3.fromRGB(15,35,60)
-		end
-	end)
-
-	btn.MouseLeave:Connect(function()
-		if btn.BackgroundColor3 ~= Color3.fromRGB(0,100,255) then
-			btn.BackgroundColor3 = Color3.fromRGB(10,20,35)
-		end
-	end)
-end
-
-print("✅ ISAMI HUB UI LOAD")
+local cs = Instance.new("UIStroke", content)
+switchTab("🐟 Auto Fish")
