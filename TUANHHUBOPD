@@ -1,37 +1,52 @@
+--// ISAMI HUB - NEON BLUE UI DEMO
+--// UI ONLY DEMO (ALL BUTTONS WORK)
+
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+
 local player = Players.LocalPlayer
 
--- REMOVE OLD
 pcall(function()
-    game.CoreGui:FindFirstChild("IsamiHub"):Destroy()
+	game.CoreGui:FindFirstChild("IsamiNeo"):Destroy()
 end)
 
 -- GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "IsamiHub"
+gui.Name = "IsamiNeo"
 gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
 
 -- MAIN
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 850, 0, 520)
-main.Position = UDim2.new(0.5, -425, 0.5, -260)
-main.BackgroundColor3 = Color3.fromRGB(3, 10, 20)
-main.Active = true
-main.Draggable = true
+main.Size = UDim2.new(0, 720, 0, 430)
+main.Position = UDim2.new(0.5, -360, 0.5, -215)
+main.BackgroundColor3 = Color3.fromRGB(3,8,20)
 main.BorderSizePixel = 0
+main.Active = true
 
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 22)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,22)
 
 local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(0,170,255)
 stroke.Thickness = 2
 
+-- Glow
+local glow = Instance.new("ImageLabel", main)
+glow.Size = UDim2.new(1,40,1,40)
+glow.Position = UDim2.new(0,-20,0,-20)
+glow.BackgroundTransparency = 1
+glow.Image = "rbxassetid://5028857084"
+glow.ImageColor3 = Color3.fromRGB(0,170,255)
+glow.ImageTransparency = 0.5
+glow.ScaleType = Enum.ScaleType.Slice
+glow.SliceCenter = Rect.new(24,24,276,276)
+glow.ZIndex = 0
+
 -- HEADER
 local header = Instance.new("Frame", main)
 header.Size = UDim2.new(1,0,0,70)
-header.BackgroundColor3 = Color3.fromRGB(0,15,35)
+header.BackgroundColor3 = Color3.fromRGB(2,12,28)
 header.BorderSizePixel = 0
 
 Instance.new("UICorner", header).CornerRadius = UDim.new(0,22)
@@ -39,63 +54,190 @@ Instance.new("UICorner", header).CornerRadius = UDim.new(0,22)
 local title = Instance.new("TextLabel", header)
 title.BackgroundTransparency = 1
 title.Position = UDim2.new(0,25,0,0)
-title.Size = UDim2.new(0,300,1,0)
-title.Font = Enum.Font.GothamBlack
+title.Size = UDim2.new(0,400,1,0)
 title.Text = "⚡ ISAMI HUB"
-title.TextSize = 30
 title.TextColor3 = Color3.fromRGB(0,170,255)
 title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamBold
+title.TextSize = 30
 
--- LOGO
-local logo = Instance.new("ImageLabel", main)
-logo.Size = UDim2.new(0,70,0,70)
-logo.Position = UDim2.new(0.5,-35,0,-35)
-logo.BackgroundColor3 = Color3.fromRGB(20,20,30)
-logo.Image = "rbxassetid://7733960981"
-logo.BorderSizePixel = 0
-Instance.new("UICorner", logo).CornerRadius = UDim.new(1,0)
-
-local ls = Instance.new("UIStroke", logo)
-ls.Color = Color3.fromRGB(80,170,255)
-ls.Thickness = 3
-
--- CLOSE BUTTON
+-- CLOSE
 local close = Instance.new("TextButton", header)
-close.Size = UDim2.new(0,45,0,45)
-close.Position = UDim2.new(1,-60,0.5,-22)
+close.Size = UDim2.new(0,46,0,46)
+close.Position = UDim2.new(1,-60,0.5,-23)
+close.BackgroundColor3 = Color3.fromRGB(12,20,35)
 close.Text = "✕"
 close.Font = Enum.Font.GothamBold
-close.TextSize = 24
+close.TextSize = 22
 close.TextColor3 = Color3.fromRGB(255,255,255)
-close.BackgroundColor3 = Color3.fromRGB(10,25,45)
 close.BorderSizePixel = 0
 
 Instance.new("UICorner", close).CornerRadius = UDim.new(0,12)
 
+local closeStroke = Instance.new("UIStroke", close)
+closeStroke.Color = Color3.fromRGB(0,170,255)
+
 close.MouseButton1Click:Connect(function()
-    gui:Destroy()
+	gui:Destroy()
 end)
 
 -- TAB HOLDER
-local tabHolder = Instance.new("Frame", main)
-tabHolder.Position = UDim2.new(0,20,0,90)
-tabHolder.Size = UDim2.new(1,-40,0,70)
-tabHolder.BackgroundColor3 = Color3.fromRGB(5,15,30)
-tabHolder.BorderSizePixel = 0
+local tabsHolder = Instance.new("Frame", main)
+tabsHolder.Position = UDim2.new(0,20,0,85)
+tabsHolder.Size = UDim2.new(1,-40,0,70)
+tabsHolder.BackgroundColor3 = Color3.fromRGB(5,15,30)
+tabsHolder.BorderSizePixel = 0
 
-Instance.new("UICorner", tabHolder).CornerRadius = UDim.new(0,20)
+Instance.new("UICorner", tabsHolder).CornerRadius = UDim.new(0,18)
 
-local ths = Instance.new("UIStroke", tabHolder)
-ths.Color = Color3.fromRGB(0,170,255)
+local tabsStroke = Instance.new("UIStroke", tabsHolder)
+tabsStroke.Color = Color3.fromRGB(0,120,255)
 
 -- CONTENT
 local content = Instance.new("Frame", main)
-content.Position = UDim2.new(0,20,0,180)
-content.Size = UDim2.new(1,-40,1,-200)
-content.BackgroundColor3 = Color3.fromRGB(2,8,18)
+content.Position = UDim2.new(0,20,0,170)
+content.Size = UDim2.new(1,-40,1,-190)
+content.BackgroundColor3 = Color3.fromRGB(2,10,25)
 content.BorderSizePixel = 0
 
 Instance.new("UICorner", content).CornerRadius = UDim.new(0,20)
 
-local cs = Instance.new("UIStroke", content)
+local contentStroke = Instance.new("UIStroke", content)
+contentStroke.Color = Color3.fromRGB(0,120,255)
+
+-- Decorative dots
+for i = 1,25 do
+	local dot = Instance.new("Frame", content)
+	dot.Size = UDim2.new(0,4,0,4)
+	dot.Position = UDim2.new(math.random(),0,math.random(),0)
+	dot.BackgroundColor3 = Color3.fromRGB(0,170,255)
+	dot.BorderSizePixel = 0
+	dot.BackgroundTransparency = 0.3
+
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+end
+
+-- TAB SYSTEM
+local tabNames = {
+	"🐟 Auto Fish",
+	"🥤 Auto Drink",
+	"⚡ Auto Haki",
+	"💤 Auto AFK"
+}
+
+local tabs = {}
+local pages = {}
+
+local function createPage(name)
+	local page = Instance.new("Frame", content)
+	page.Size = UDim2.new(1,0,1,0)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	
+	local label = Instance.new("TextLabel", page)
+	label.Size = UDim2.new(1,0,1,0)
+	label.BackgroundTransparency = 1
+	label.Text = name
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 40
+	label.TextColor3 = Color3.fromRGB(0,170,255)
+	
+	return page
+end
+
+local function switchTab(tabName)
+	for name,page in pairs(pages) do
+		page.Visible = (name == tabName)
+	end
+	
+	for name,button in pairs(tabs) do
+		if name == tabName then
+			TweenService:Create(button,TweenInfo.new(0.2),{
+				BackgroundColor3 = Color3.fromRGB(20,90,255)
+			}):Play()
+		else
+			TweenService:Create(button,TweenInfo.new(0.2),{
+				BackgroundColor3 = Color3.fromRGB(10,20,40)
+			}):Play()
+		end
+	end
+end
+
+for i,name in ipairs(tabNames) do
+	
+	local btn = Instance.new("TextButton", tabsHolder)
+	btn.Size = UDim2.new(0,150,0,48)
+	btn.Position = UDim2.new(0,(i-1)*165+15,0.5,-24)
+	btn.BackgroundColor3 = Color3.fromRGB(10,20,40)
+	btn.BorderSizePixel = 0
+	btn.Text = name
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 20
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,14)
+	
+	local s = Instance.new("UIStroke", btn)
+	s.Color = Color3.fromRGB(0,120,255)
+	
+	btn.MouseEnter:Connect(function()
+		if btn.BackgroundColor3 ~= Color3.fromRGB(20,90,255) then
+			TweenService:Create(btn,TweenInfo.new(0.15),{
+				BackgroundColor3 = Color3.fromRGB(15,35,65)
+			}):Play()
+		end
+	end)
+	
+	btn.MouseLeave:Connect(function()
+		if btn.BackgroundColor3 ~= Color3.fromRGB(20,90,255) then
+			TweenService:Create(btn,TweenInfo.new(0.15),{
+				BackgroundColor3 = Color3.fromRGB(10,20,40)
+			}):Play()
+		end
+	end)
+	
+	btn.MouseButton1Click:Connect(function()
+		switchTab(name)
+	end)
+	
+	tabs[name] = btn
+	pages[name] = createPage(name)
+end
+
+-- DEFAULT TAB
 switchTab("🐟 Auto Fish")
+
+-- DRAG
+local dragging = false
+local dragStart
+local startPos
+
+header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = main.Position
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		
+		local delta = input.Position - dragStart
+		
+		main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+print("✅ ISAMI HUB NEON LOADED")
