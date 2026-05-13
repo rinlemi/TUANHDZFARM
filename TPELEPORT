@@ -1,0 +1,139 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- GUI
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 200, 0, 300)
+main.Position = UDim2.new(0, 10, 0.2, 0)
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(0, 150, 255)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+title.BorderSizePixel = 0
+title.Text = "👥 Players"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 14
+title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+-- Refresh button
+local refreshBtn = Instance.new("TextButton", main)
+refreshBtn.Size = UDim2.new(0, 30, 0, 25)
+refreshBtn.Position = UDim2.new(1, -35, 0, 5)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+refreshBtn.BorderSizePixel = 0
+refreshBtn.Text = "🔄"
+refreshBtn.TextSize = 12
+refreshBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+
+local scroll = Instance.new("ScrollingFrame", main)
+scroll.Size = UDim2.new(1, -10, 1, -90)
+scroll.Position = UDim2.new(0, 5, 0, 40)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0, 4)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- TP button
+local tpFrame = Instance.new("Frame", main)
+tpFrame.Size = UDim2.new(1, -10, 0, 40)
+tpFrame.Position = UDim2.new(0, 5, 1, -45)
+tpFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+tpFrame.BorderSizePixel = 0
+Instance.new("UICorner", tpFrame).CornerRadius = UDim.new(0, 8)
+
+local tpBtn = Instance.new("TextButton", tpFrame)
+tpBtn.Size = UDim2.new(1, 0, 1, 0)
+tpBtn.BackgroundTransparency = 1
+tpBtn.Text = "Chọn người chơi"
+tpBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+tpBtn.TextSize = 12
+tpBtn.Font = Enum.Font.GothamBold
+
+local selectedPlayer = nil
+
+local function selectPlayer(plr)
+	selectedPlayer = plr
+	tpBtn.Text = "🚀 TP → " .. plr.Name
+	tpBtn.TextColor3 = Color3.fromRGB(100, 255, 150)
+end
+
+local function refreshList()
+	-- Xóa list cũ
+	for _, v in ipairs(scroll:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
+	end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr == player then continue end
+
+		local btn = Instance.new("TextButton", scroll)
+		btn.Size = UDim2.new(1, -5, 0, 32)
+		btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+		btn.BorderSizePixel = 0
+		btn.Text = "👤 " .. plr.Name
+		btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+		btn.TextSize = 12
+		btn.Font = Enum.Font.GothamBold
+		btn.TextXAlignment = Enum.TextXAlignment.Left
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+		local pad = Instance.new("UIPadding", btn)
+		pad.PaddingLeft = UDim.new(0, 8)
+
+		btn.MouseButton1Click:Connect(function()
+			selectPlayer(plr)
+			-- Highlight
+			for _, b in ipairs(scroll:GetChildren()) do
+				if b:IsA("TextButton") then
+					b.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+				end
+			end
+			btn.BackgroundColor3 = Color3.fromRGB(0, 80, 160)
+		end)
+	end
+
+	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 5)
+end
+
+-- TP khi bấm
+tpBtn.MouseButton1Click:Connect(function()
+	if not selectedPlayer then return end
+	local char = player.Character
+	local targetChar = selectedPlayer.Character
+	if not char or not targetChar then
+		tpBtn.Text = "❌ Không tìm thấy!"
+		task.wait(2)
+		tpBtn.Text = "🚀 TP → " .. selectedPlayer.Name
+		return
+	end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
+	if hrp and targetHrp then
+		hrp.CFrame = targetHrp.CFrame + Vector3.new(3, 0, 0)
+		print("✅ TP đến " .. selectedPlayer.Name)
+	end
+end)
+
+refreshBtn.MouseButton1Click:Connect(function() refreshList() end)
+
+-- Auto refresh khi có người vào/ra
+Players.PlayerAdded:Connect(function() refreshList() end)
+Players.PlayerRemoving:Connect(function() refreshList() end)
+
+refreshList()
+print("✅ Player List đã load!")
