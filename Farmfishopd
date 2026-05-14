@@ -8,6 +8,7 @@ local cacheCount = 0
 local currentThread = nil
 local running = false
 local cacheRunning = false
+local cacheInProgress = false
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
@@ -118,14 +119,17 @@ cacheLabel.Font = Enum.Font.GothamBold
 
 -- ✅ Auto Cache
 local function openCache(item)
+	if cacheInProgress then return end
+	cacheInProgress = true
 	local char = player.Character
-	if not char then return end
+	if not char then cacheInProgress = false return end
 	item.Parent = char
 	task.wait(0.3)
 	pcall(function() char:FindFirstChild(item.Name):Activate() end)
 	cacheCount = cacheCount + 1
 	cacheLabel.Text = "📦 Cache: " .. cacheCount
 	print("📦 Tự mở Cache!")
+	cacheInProgress = false
 end
 
 player.Backpack.ChildAdded:Connect(function(item)
@@ -147,81 +151,113 @@ btnCache.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- Tìm Caught
+local function findCaught(rodName, char)
+	local locations = {
+		char:FindFirstChild(rodName),
+		player.Backpack:FindFirstChild(rodName),
+	}
+	for _, rod in ipairs(locations) do
+		if rod then
+			local caught = rod:FindFirstChild("Caught", true)
+			if caught then return caught end
+		end
+	end
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj.Name == rodName then
+			local caught = obj:FindFirstChild("Caught", true)
+			if caught then return caught end
+		end
+	end
+	return nil
+end
+
 -- ✅ Fishing loop
 local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
 	while running do
 		local char = player.Character or player.CharacterAdded:Wait()
-		if not char:FindFirstChild(rodName) and not player.Backpack:FindFirstChild(rodName) then
-			task.wait(1)
-			continue
-		end
+		local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
+		if not rod then task.wait(1) continue end
+
+		-- Chờ cache xong trước khi reset cần
+		while cacheInProgress do task.wait(0.1) end
+
+		-- Reset cần
+		pcall(function()
+			local r = char:FindFirstChild(rodName)
+			if r then r.Parent = player.Backpack end
+		end)
+		task.wait(0.2)
+		pcall(function()
+			local r = player.Backpack:FindFirstChild(rodName)
+			if r then r.Parent = char end
+		end)
+		task.wait(0.2)
 
 		-- Thả cần
 		pcall(function()
-			local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
-			if rod then
-				rod:WaitForChild("Click"):FireServer(
+			local r = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
+			if r then
+				r:WaitForChild("Click"):FireServer(
 					vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
 				)
 			end
 		end)
 		print("🎣 Thả cần... chờ cá cắn")
 
-		-- Tìm Caught (chờ tối đa 5s để rod spawn ra workspace)
+		-- Tìm Caught
 		local caught = nil
 		local t0 = 0
 		repeat
-			task.wait(0.1)
-			t0 = t0 + 0.1
-			local rod = char:FindFirstChild(rodName)
-				or player.Backpack:FindFirstChild(rodName)
-				or workspace:FindFirstChild(rodName, true)
-			if rod then
-				caught = rod:FindFirstChild("Caught", true)
-			end
+			task.wait(0.2)
+			t0 = t0 + 0.2
+			caught = findCaught(rodName, char)
 		until caught ~= nil or t0 >= 5
 
-		if caught then
-			-- Chờ Caught reset về false trước (phòng còn true từ lần trước)
+		if not caught then
+			print("⚠️ Không tìm thấy Caught, fallback 20s")
+			task.wait(20)
+		else
+			-- Chờ reset false
 			local tReset = 0
-			while caught.Value == true and tReset < 5 do
+			while caught.Value == true and tReset < 3 do
 				task.wait(0.1)
 				tReset = tReset + 0.1
 			end
 
-			-- Chờ cá cắn, timeout 30s
+			-- Chờ cá cắn, timeout 35s
 			local t = 0
 			repeat
 				task.wait(0.1)
 				t = t + 0.1
 				if not running then break end
-			until caught.Value == true or t >= 30
+			until caught.Value == true or t >= 35
 
 			if caught.Value == true then
 				print("🐟 Cá cắn! Đang kéo...")
 			else
-				print("⏰ Timeout 30s, thử lại...")
+				print("⏰ Timeout, thử lại...")
+				continue
 			end
-		else
-			print("⚠️ Không tìm thấy Caught, fallback wait 10s")
-			task.wait(10)
 		end
 
 		if not running then break end
 
-		-- Kéo cá lên
+		-- Kéo cần
 		char = player.Character or player.CharacterAdded:Wait()
 		pcall(function()
-			local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
-			if rod then
-				rod:WaitForChild("Click"):FireServer(
+			local r = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
+			if r then
+				r:WaitForChild("Click"):FireServer(
 					vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
 				)
 			end
 		end)
 		task.wait(0.5)
 		if not running then break end
+
+		-- Minigame
 		pcall(function() fishing:FireServer("Start", "Easy") end)
 		task.wait(0.3)
 		for i = 1, 10 do
@@ -231,11 +267,13 @@ local function fishingLoop(rodName)
 		end
 		task.wait(0.5)
 		if not running then break end
+
+		-- Finish
 		pcall(function() fishing:FireServer("Finish", 10) end)
 		fishCount = fishCount + 1
 		counterLabel.Text = "🐟 Cá: " .. fishCount
 		print("🐟 Nhận cá! Tổng: " .. fishCount)
-		task.wait(3)
+		task.wait(2)
 	end
 end
 
