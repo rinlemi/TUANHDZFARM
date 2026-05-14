@@ -116,7 +116,7 @@ cacheLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 cacheLabel.TextSize = 12
 cacheLabel.Font = Enum.Font.GothamBold
 
--- ✅ Auto Cache dùng listener thay vì loop
+-- ✅ Auto Cache
 local function openCache(item)
 	local char = player.Character
 	if not char then return end
@@ -147,7 +147,7 @@ btnCache.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ✅ Fishing loop
+-- ✅ Fishing loop (detect Caught thay vì wait 10s)
 local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
 	while running do
@@ -156,6 +156,8 @@ local function fishingLoop(rodName)
 			task.wait(1)
 			continue
 		end
+
+		-- Thả cần
 		pcall(function()
 			local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
 			if rod then
@@ -164,9 +166,44 @@ local function fishingLoop(rodName)
 				)
 			end
 		end)
-		print("🎣 Thả cần... chờ 10s")
-		task.wait(10)
+		print("🎣 Thả cần... chờ cá cắn")
+
+		-- Tìm Caught (chờ tối đa 5s để rod spawn ra workspace)
+		local caught = nil
+		local t0 = 0
+		repeat
+			task.wait(0.1)
+			t0 = t0 + 0.1
+			local rod = char:FindFirstChild(rodName)
+				or player.Backpack:FindFirstChild(rodName)
+				or workspace:FindFirstChild(rodName, true)
+			if rod then
+				caught = rod:FindFirstChild("Caught", true)
+			end
+		until caught ~= nil or t0 >= 5
+
+		if caught then
+			-- Chờ cá cắn, timeout 30s
+			local t = 0
+			repeat
+				task.wait(0.1)
+				t = t + 0.1
+				if not running then break end
+			until caught.Value == true or t >= 30
+
+			if caught.Value == true then
+				print("🐟 Cá cắn! Đang kéo...")
+			else
+				print("⏰ Timeout 30s, thử lại...")
+			end
+		else
+			print("⚠️ Không tìm thấy Caught, fallback wait 10s")
+			task.wait(10)
+		end
+
 		if not running then break end
+
+		-- Kéo cá lên
 		char = player.Character or player.CharacterAdded:Wait()
 		pcall(function()
 			local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
