@@ -164,8 +164,8 @@ local function fishingLoop(rodName)
 				)
 			end
 		end)
-		print("🎣 Thả cần... chờ 20s")
-		task.wait(20)
+		print("🎣 Thả cần... chờ 15s")
+		task.wait(15)
 		if not running then break end
 		char = player.Character or player.CharacterAdded:Wait()
 		pcall(function()
