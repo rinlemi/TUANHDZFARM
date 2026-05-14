@@ -8,6 +8,7 @@ local cacheCount = 0
 local currentThread = nil
 local running = false
 local cacheRunning = false
+local cacheInProgress = false
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
@@ -116,16 +117,19 @@ cacheLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 cacheLabel.TextSize = 12
 cacheLabel.Font = Enum.Font.GothamBold
 
--- Auto Cache
+-- ✅ Auto Cache
 local function openCache(item)
+	if cacheInProgress then return end
+	cacheInProgress = true
 	local char = player.Character
-	if not char then return end
+	if not char then cacheInProgress = false return end
 	item.Parent = char
 	task.wait(0.3)
 	pcall(function() char:FindFirstChild(item.Name):Activate() end)
 	cacheCount = cacheCount + 1
 	cacheLabel.Text = "📦 Cache: " .. cacheCount
 	print("📦 Tự mở Cache!")
+	cacheInProgress = false
 end
 
 player.Backpack.ChildAdded:Connect(function(item)
@@ -147,7 +151,7 @@ btnCache.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Tìm Caught value trong rod
+-- Tìm Caught
 local function findCaught(rodName, char)
 	local locations = {
 		char:FindFirstChild(rodName),
@@ -159,16 +163,16 @@ local function findCaught(rodName, char)
 			if caught then return caught end
 		end
 	end
-	-- Tìm trong workspace
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj.Name == rodName and obj:FindFirstChild("Caught", true) then
-			return obj:FindFirstChild("Caught", true)
+		if obj.Name == rodName then
+			local caught = obj:FindFirstChild("Caught", true)
+			if caught then return caught end
 		end
 	end
 	return nil
 end
 
--- Fishing loop dùng Caught detection
+-- ✅ Fishing loop
 local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
 	while running do
@@ -176,7 +180,10 @@ local function fishingLoop(rodName)
 		local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
 		if not rod then task.wait(1) continue end
 
-		-- Reset cần trước mỗi vòng
+		-- Chờ cache xong trước khi reset cần
+		while cacheInProgress do task.wait(0.1) end
+
+		-- Reset cần
 		pcall(function()
 			local r = char:FindFirstChild(rodName)
 			if r then r.Parent = player.Backpack end
@@ -199,7 +206,7 @@ local function fishingLoop(rodName)
 		end)
 		print("🎣 Thả cần... chờ cá cắn")
 
-		-- Chờ Caught xuất hiện (tối đa 5s)
+		-- Tìm Caught
 		local caught = nil
 		local t0 = 0
 		repeat
@@ -212,7 +219,7 @@ local function fishingLoop(rodName)
 			print("⚠️ Không tìm thấy Caught, fallback 20s")
 			task.wait(20)
 		else
-			-- Chờ Caught = false trước (reset từ lần trước)
+			-- Chờ reset false
 			local tReset = 0
 			while caught.Value == true and tReset < 3 do
 				task.wait(0.1)
