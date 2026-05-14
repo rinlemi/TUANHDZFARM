@@ -147,7 +147,7 @@ btnCache.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ✅ Fishing loop (detect Caught thay vì wait 10s)
+-- ✅ Fishing loop
 local function fishingLoop(rodName)
 	local fishing = RS:WaitForChild("Fishing")
 	while running do
@@ -183,6 +183,13 @@ local function fishingLoop(rodName)
 		until caught ~= nil or t0 >= 5
 
 		if caught then
+			-- Chờ Caught reset về false trước (phòng còn true từ lần trước)
+			local tReset = 0
+			while caught.Value == true and tReset < 5 do
+				task.wait(0.1)
+				tReset = tReset + 0.1
+			end
+
 			-- Chờ cá cắn, timeout 30s
 			local t = 0
 			repeat
