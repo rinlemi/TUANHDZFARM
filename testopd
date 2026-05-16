@@ -1,13 +1,15 @@
 local player = game:GetService("Players").LocalPlayer
 local pulling = false
+local pullingAll = false
 local pullThread = nil
+local pullAllThread = nil
 local selectedMob = nil
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 220, 0, 320)
+main.Size = UDim2.new(0, 220, 0, 400)
 main.Position = UDim2.new(0, 10, 0.2, 0)
 main.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 main.BorderSizePixel = 0
@@ -18,7 +20,6 @@ local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(255, 100, 0)
 stroke.Thickness = 1.5
 
--- Title
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundColor3 = Color3.fromRGB(180, 60, 0)
@@ -29,7 +30,6 @@ title.TextSize = 14
 title.Font = Enum.Font.GothamBold
 Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
--- Refresh
 local refreshBtn = Instance.new("TextButton", main)
 refreshBtn.Size = UDim2.new(1, -10, 0, 28)
 refreshBtn.Position = UDim2.new(0, 5, 0, 40)
@@ -41,9 +41,8 @@ refreshBtn.TextSize = 12
 refreshBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
 
--- Scroll list mob
 local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, -10, 0, 160)
+scroll.Size = UDim2.new(1, -10, 0, 150)
 scroll.Position = UDim2.new(0, 5, 0, 73)
 scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
 scroll.BorderSizePixel = 0
@@ -52,15 +51,14 @@ scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
 local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0, 3)
-local pad = Instance.new("UIPadding", scroll)
-pad.PaddingTop = UDim.new(0, 4)
-pad.PaddingLeft = UDim.new(0, 4)
-pad.PaddingRight = UDim.new(0, 4)
+local scrollPad = Instance.new("UIPadding", scroll)
+scrollPad.PaddingTop = UDim.new(0, 4)
+scrollPad.PaddingLeft = UDim.new(0, 4)
+scrollPad.PaddingRight = UDim.new(0, 4)
 
--- Status
 local statusLabel = Instance.new("TextLabel", main)
-statusLabel.Size = UDim2.new(1, -10, 0, 28)
-statusLabel.Position = UDim2.new(0, 5, 0, 240)
+statusLabel.Size = UDim2.new(1, -10, 0, 25)
+statusLabel.Position = UDim2.new(0, 5, 0, 228)
 statusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
 statusLabel.BorderSizePixel = 0
 statusLabel.Text = "Chưa chọn mob"
@@ -69,29 +67,59 @@ statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.GothamBold
 Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
 
--- Pull/Stop button
 local pullBtn = Instance.new("TextButton", main)
-pullBtn.Size = UDim2.new(1, -10, 0, 40)
-pullBtn.Position = UDim2.new(0, 5, 0, 273)
+pullBtn.Size = UDim2.new(1, -10, 0, 38)
+pullBtn.Position = UDim2.new(0, 5, 0, 258)
 pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
 pullBtn.BorderSizePixel = 0
 pullBtn.Text = "🔴 Kéo Mob"
 pullBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-pullBtn.TextSize = 14
+pullBtn.TextSize = 13
 pullBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", pullBtn).CornerRadius = UDim.new(0, 8)
 
+local pullAllBtn = Instance.new("TextButton", main)
+pullAllBtn.Size = UDim2.new(1, -10, 0, 38)
+pullAllBtn.Position = UDim2.new(0, 5, 0, 301)
+pullAllBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 150)
+pullAllBtn.BorderSizePixel = 0
+pullAllBtn.Text = "🌀 Kéo Tất Cả"
+pullAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+pullAllBtn.TextSize = 13
+pullAllBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", pullAllBtn).CornerRadius = UDim.new(0, 8)
+
+local stopAllBtn = Instance.new("TextButton", main)
+stopAllBtn.Size = UDim2.new(1, -10, 0, 38)
+stopAllBtn.Position = UDim2.new(0, 5, 0, 344)
+stopAllBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+stopAllBtn.BorderSizePixel = 0
+stopAllBtn.Text = "⏹ Dừng Tất Cả"
+stopAllBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopAllBtn.TextSize = 13
+stopAllBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", stopAllBtn).CornerRadius = UDim.new(0, 8)
+
+-- Freeze/Unfreeze mob
+local function freezeMob(mob, freeze)
+	local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+	local hum = mob:FindFirstChild("Humanoid")
+	local ai = mob:FindFirstChild("AI") or mob:FindFirstChild("AIGun")
+	if mobHrp then mobHrp.Anchored = freeze end
+	if hum then hum.WalkSpeed = freeze and 0 or 16 end
+	if ai then ai.Disabled = freeze end
+end
+
+-- Refresh list
 local function refreshList()
 	for _, v in ipairs(scroll:GetChildren()) do
 		if v:IsA("TextButton") then v:Destroy() end
 	end
-
 	local seen = {}
 	for _, mob in ipairs(workspace.Enemies:GetChildren()) do
 		local hum = mob:FindFirstChild("Humanoid")
 		if hum and hum.Health > 0 and not seen[mob.Name] then
 			seen[mob.Name] = true
-
 			local btn = Instance.new("TextButton", scroll)
 			btn.Size = UDim2.new(1, 0, 0, 28)
 			btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
@@ -104,7 +132,6 @@ local function refreshList()
 			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 			local p = Instance.new("UIPadding", btn)
 			p.PaddingLeft = UDim.new(0, 8)
-
 			btn.MouseButton1Click:Connect(function()
 				selectedMob = mob.Name
 				statusLabel.Text = "✅ " .. mob.Name
@@ -118,18 +145,36 @@ local function refreshList()
 			end)
 		end
 	end
-
 	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
 end
 
+-- Dừng kéo mob chọn
 local function stopPull()
 	pulling = false
 	if pullThread then task.cancel(pullThread) pullThread = nil end
+	-- Unfreeze mob
+	if selectedMob then
+		for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+			if mob.Name == selectedMob then freezeMob(mob, false) end
+		end
+	end
 	pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
 	pullBtn.Text = "🔴 Kéo Mob"
-	statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 end
 
+-- Dừng kéo all
+local function stopPullAll()
+	pullingAll = false
+	if pullAllThread then task.cancel(pullAllThread) pullAllThread = nil end
+	-- Unfreeze all
+	for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+		freezeMob(mob, false)
+	end
+	pullAllBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 150)
+	pullAllBtn.Text = "🌀 Kéo Tất Cả"
+end
+
+-- Bắt đầu kéo mob chọn
 local function startPull()
 	if not selectedMob then
 		statusLabel.Text = "❌ Chọn mob trước!"
@@ -138,7 +183,7 @@ local function startPull()
 	end
 	pulling = true
 	pullBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-	pullBtn.Text = "⏹ Dừng"
+	pullBtn.Text = "⏹ Dừng Kéo"
 
 	pullThread = task.spawn(function()
 		while pulling do
@@ -151,6 +196,31 @@ local function startPull()
 				local mobHrp = mob:FindFirstChild("HumanoidRootPart")
 				local hum = mob:FindFirstChild("Humanoid")
 				if not mobHrp or not hum or hum.Health <= 0 then continue end
+				freezeMob(mob, true)
+				mobHrp.CFrame = hrp.CFrame
+			end
+			task.wait(0.05)
+		end
+	end)
+end
+
+-- Bắt đầu kéo all
+local function startPullAll()
+	pullingAll = true
+	pullAllBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	pullAllBtn.Text = "⏹ Dừng Kéo All"
+
+	pullAllThread = task.spawn(function()
+		while pullingAll do
+			local char = player.Character
+			if not char then task.wait(0.1) continue end
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if not hrp then task.wait(0.1) continue end
+			for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+				local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+				local hum = mob:FindFirstChild("Humanoid")
+				if not mobHrp or not hum or hum.Health <= 0 then continue end
+				freezeMob(mob, true)
 				mobHrp.CFrame = hrp.CFrame
 			end
 			task.wait(0.05)
@@ -160,6 +230,17 @@ end
 
 pullBtn.MouseButton1Click:Connect(function()
 	if pulling then stopPull() else startPull() end
+end)
+
+pullAllBtn.MouseButton1Click:Connect(function()
+	if pullingAll then stopPullAll() else startPullAll() end
+end)
+
+stopAllBtn.MouseButton1Click:Connect(function()
+	stopPull()
+	stopPullAll()
+	statusLabel.Text = "⏹ Đã dừng tất cả"
+	statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 end)
 
 refreshBtn.MouseButton1Click:Connect(refreshList)
