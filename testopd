@@ -3,12 +3,11 @@ local pulling = false
 local pullThread = nil
 local selectedMob = nil
 
--- GUI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 220, 0, 350)
+main.Size = UDim2.new(0, 220, 0, 320)
 main.Position = UDim2.new(0, 10, 0.2, 0)
 main.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 main.BorderSizePixel = 0
@@ -19,6 +18,7 @@ local stroke = Instance.new("UIStroke", main)
 stroke.Color = Color3.fromRGB(255, 100, 0)
 stroke.Thickness = 1.5
 
+-- Title
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundColor3 = Color3.fromRGB(180, 60, 0)
@@ -29,75 +29,63 @@ title.TextSize = 14
 title.Font = Enum.Font.GothamBold
 Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
--- Refresh button
+-- Refresh
 local refreshBtn = Instance.new("TextButton", main)
-refreshBtn.Size = UDim2.new(1, -10, 0, 30)
+refreshBtn.Size = UDim2.new(1, -10, 0, 28)
 refreshBtn.Position = UDim2.new(0, 5, 0, 40)
 refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
 refreshBtn.BorderSizePixel = 0
-refreshBtn.Text = "🔄 Làm mới danh sách"
+refreshBtn.Text = "🔄 Làm mới"
 refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 refreshBtn.TextSize = 12
 refreshBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
 
--- Scroll list
+-- Scroll list mob
 local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, -10, 1, -160)
-scroll.Position = UDim2.new(0, 5, 0, 75)
-scroll.BackgroundTransparency = 1
+scroll.Size = UDim2.new(1, -10, 0, 160)
+scroll.Position = UDim2.new(0, 5, 0, 73)
+scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
 scroll.BorderSizePixel = 0
 scroll.ScrollBarThickness = 3
 scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
 local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0, 3)
+local pad = Instance.new("UIPadding", scroll)
+pad.PaddingTop = UDim.new(0, 4)
+pad.PaddingLeft = UDim.new(0, 4)
+pad.PaddingRight = UDim.new(0, 4)
 
--- Status label
+-- Status
 local statusLabel = Instance.new("TextLabel", main)
-statusLabel.Size = UDim2.new(1, -10, 0, 25)
-statusLabel.Position = UDim2.new(0, 5, 1, -115)
+statusLabel.Size = UDim2.new(1, -10, 0, 28)
+statusLabel.Position = UDim2.new(0, 5, 0, 240)
 statusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
 statusLabel.BorderSizePixel = 0
 statusLabel.Text = "Chưa chọn mob"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.GothamBold
 Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
 
--- Pull button
+-- Pull/Stop button
 local pullBtn = Instance.new("TextButton", main)
-pullBtn.Size = UDim2.new(1, -10, 0, 35)
-pullBtn.Position = UDim2.new(0, 5, 1, -85)
+pullBtn.Size = UDim2.new(1, -10, 0, 40)
+pullBtn.Position = UDim2.new(0, 5, 0, 273)
 pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
 pullBtn.BorderSizePixel = 0
 pullBtn.Text = "🔴 Kéo Mob"
 pullBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-pullBtn.TextSize = 13
+pullBtn.TextSize = 14
 pullBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", pullBtn).CornerRadius = UDim.new(0, 8)
-
--- Stop button
-local stopBtn = Instance.new("TextButton", main)
-stopBtn.Size = UDim2.new(1, -10, 0, 35)
-stopBtn.Position = UDim2.new(0, 5, 1, -45)
-stopBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-stopBtn.BorderSizePixel = 0
-stopBtn.Text = "⏹ Dừng"
-stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-stopBtn.TextSize = 13
-stopBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", stopBtn).CornerRadius = UDim.new(0, 8)
-
--- Danh sách mob đã thấy (tránh trùng)
-local mobButtons = {}
 
 local function refreshList()
 	for _, v in ipairs(scroll:GetChildren()) do
 		if v:IsA("TextButton") then v:Destroy() end
 	end
-	mobButtons = {}
 
-	-- Gom tên mob unique
 	local seen = {}
 	for _, mob in ipairs(workspace.Enemies:GetChildren()) do
 		local hum = mob:FindFirstChild("Humanoid")
@@ -105,7 +93,7 @@ local function refreshList()
 			seen[mob.Name] = true
 
 			local btn = Instance.new("TextButton", scroll)
-			btn.Size = UDim2.new(1, -5, 0, 30)
+			btn.Size = UDim2.new(1, 0, 0, 28)
 			btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
 			btn.BorderSizePixel = 0
 			btn.Text = "👾 " .. mob.Name
@@ -114,12 +102,12 @@ local function refreshList()
 			btn.Font = Enum.Font.GothamBold
 			btn.TextXAlignment = Enum.TextXAlignment.Left
 			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-			local pad = Instance.new("UIPadding", btn)
-			pad.PaddingLeft = UDim.new(0, 8)
+			local p = Instance.new("UIPadding", btn)
+			p.PaddingLeft = UDim.new(0, 8)
 
 			btn.MouseButton1Click:Connect(function()
 				selectedMob = mob.Name
-				statusLabel.Text = "✅ Chọn: " .. mob.Name
+				statusLabel.Text = "✅ " .. mob.Name
 				statusLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
 				for _, b in ipairs(scroll:GetChildren()) do
 					if b:IsA("TextButton") then
@@ -128,16 +116,20 @@ local function refreshList()
 				end
 				btn.BackgroundColor3 = Color3.fromRGB(0, 80, 160)
 			end)
-
-			table.insert(mobButtons, btn)
 		end
 	end
 
-	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 5)
-	print("✅ Làm mới xong! " .. #mobButtons .. " loại mob")
+	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
 end
 
--- Pull logic
+local function stopPull()
+	pulling = false
+	if pullThread then task.cancel(pullThread) pullThread = nil end
+	pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+	pullBtn.Text = "🔴 Kéo Mob"
+	statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+end
+
 local function startPull()
 	if not selectedMob then
 		statusLabel.Text = "❌ Chọn mob trước!"
@@ -145,9 +137,8 @@ local function startPull()
 		return
 	end
 	pulling = true
-	pullBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
-	pullBtn.Text = "🔥 Đang kéo: " .. selectedMob
-	statusLabel.Text = "🔥 Kéo: " .. selectedMob
+	pullBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	pullBtn.Text = "⏹ Dừng"
 
 	pullThread = task.spawn(function()
 		while pulling do
@@ -155,7 +146,6 @@ local function startPull()
 			if not char then task.wait(0.1) continue end
 			local hrp = char:FindFirstChild("HumanoidRootPart")
 			if not hrp then task.wait(0.1) continue end
-
 			for _, mob in ipairs(workspace.Enemies:GetChildren()) do
 				if mob.Name ~= selectedMob then continue end
 				local mobHrp = mob:FindFirstChild("HumanoidRootPart")
@@ -168,32 +158,17 @@ local function startPull()
 	end)
 end
 
-local function stopPull()
-	pulling = false
-	if pullThread then
-		task.cancel(pullThread)
-		pullThread = nil
-	end
-	pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-	pullBtn.Text = "🔴 Kéo Mob"
-	statusLabel.Text = "⏹ Đã dừng"
-	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-end
-
-refreshBtn.MouseButton1Click:Connect(refreshList)
 pullBtn.MouseButton1Click:Connect(function()
 	if pulling then stopPull() else startPull() end
 end)
-stopBtn.MouseButton1Click:Connect(stopPull)
 
--- Auto refresh khi mob mới spawn
+refreshBtn.MouseButton1Click:Connect(refreshList)
+
 workspace.Enemies.ChildAdded:Connect(function()
-	task.wait(0.5)
-	refreshList()
+	task.wait(0.5) refreshList()
 end)
 workspace.Enemies.ChildRemoved:Connect(function()
-	task.wait(0.5)
-	refreshList()
+	task.wait(0.5) refreshList()
 end)
 
 refreshList()
