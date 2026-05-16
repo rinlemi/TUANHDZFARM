@@ -1,346 +1,200 @@
-local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
-local RS = game:GetService("ReplicatedStorage")
-local player = Players.LocalPlayer
+local player = game:GetService("Players").LocalPlayer
+local pulling = false
+local pullThread = nil
+local selectedMob = nil
 
-local fishCount = 0
-local cacheCount = 0
-local currentThread = nil
-local running = false
-local cacheRunning = false
-local cacheInProgress = false
-
+-- GUI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
-gui.Name = "FishingMenu"
-
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 40, 0, 40)
-toggleBtn.Position = UDim2.new(0, 10, 0.5, -20)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-toggleBtn.BorderSizePixel = 0
-toggleBtn.Text = "☰"
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 20
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.Visible = false
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 420, 0, 260)
-main.Position = UDim2.new(0, 10, 0.5, -130)
-main.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+main.Size = UDim2.new(0, 220, 0, 350)
+main.Position = UDim2.new(0, 10, 0.2, 0)
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 main.BorderSizePixel = 0
 main.Active = true
 main.Draggable = true
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(0, 180, 255)
+stroke.Color = Color3.fromRGB(255, 100, 0)
 stroke.Thickness = 1.5
 
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, -45, 0, 36)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "🎣 FISHING MENU"
-title.TextColor3 = Color3.fromRGB(0, 200, 255)
-title.TextSize = 15
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(180, 60, 0)
+title.BorderSizePixel = 0
+title.Text = "⚔️ Mob Puller"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 14
 title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-local closeBtn = Instance.new("TextButton", main)
-closeBtn.Size = UDim2.new(0, 35, 0, 30)
-closeBtn.Position = UDim2.new(1, -40, 0, 3)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-closeBtn.BorderSizePixel = 0
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextSize = 14
-closeBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+-- Refresh button
+local refreshBtn = Instance.new("TextButton", main)
+refreshBtn.Size = UDim2.new(1, -10, 0, 30)
+refreshBtn.Position = UDim2.new(0, 5, 0, 40)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
+refreshBtn.BorderSizePixel = 0
+refreshBtn.Text = "🔄 Làm mới danh sách"
+refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshBtn.TextSize = 12
+refreshBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
 
-closeBtn.MouseButton1Click:Connect(function()
-	main.Visible = false
-	toggleBtn.Visible = true
-end)
-toggleBtn.MouseButton1Click:Connect(function()
-	main.Visible = true
-	toggleBtn.Visible = false
-end)
+-- Scroll list
+local scroll = Instance.new("ScrollingFrame", main)
+scroll.Size = UDim2.new(1, -10, 1, -160)
+scroll.Position = UDim2.new(0, 5, 0, 75)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0, 3)
 
-local function makeButton(parent, text, x, y, color)
-	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(0, 185, 0, 35)
-	btn.Position = UDim2.new(0, x, 0, y)
-	btn.BackgroundColor3 = color or Color3.fromRGB(30, 30, 50)
-	btn.BorderSizePixel = 0
-	btn.Text = text
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 12
-	btn.Font = Enum.Font.GothamBold
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-	return btn
-end
+-- Status label
+local statusLabel = Instance.new("TextLabel", main)
+statusLabel.Size = UDim2.new(1, -10, 0, 25)
+statusLabel.Position = UDim2.new(0, 5, 1, -115)
+statusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "Chưa chọn mob"
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamBold
+Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
 
-local btnSuper  = makeButton(main, "🎣 Super Rod", 10, 42, Color3.fromRGB(30, 80, 150))
-local btnWood   = makeButton(main, "🪵 Wood Rod", 10, 82, Color3.fromRGB(100, 60, 20))
-local btnSturdy = makeButton(main, "🪨 Sturdy Rod", 10, 122, Color3.fromRGB(80, 80, 80))
-local btnTP     = makeButton(main, "📍 TP Câu Cá", 10, 162, Color3.fromRGB(20, 120, 60))
-local btnSell   = makeButton(main, "💰 TP Sell", 10, 202, Color3.fromRGB(150, 100, 0))
-local btnCache  = makeButton(main, "📦 Auto Cache: TẮT", 225, 42, Color3.fromRGB(60, 20, 80))
-local btnAFK    = makeButton(main, "💤 Anti AFK: TẮT", 225, 82, Color3.fromRGB(60, 20, 80))
+-- Pull button
+local pullBtn = Instance.new("TextButton", main)
+pullBtn.Size = UDim2.new(1, -10, 0, 35)
+pullBtn.Position = UDim2.new(0, 5, 1, -85)
+pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+pullBtn.BorderSizePixel = 0
+pullBtn.Text = "🔴 Kéo Mob"
+pullBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+pullBtn.TextSize = 13
+pullBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", pullBtn).CornerRadius = UDim.new(0, 8)
 
-local counterFrame = Instance.new("Frame", main)
-counterFrame.Size = UDim2.new(0, 185, 0, 30)
-counterFrame.Position = UDim2.new(0, 225, 0, 122)
-counterFrame.BackgroundColor3 = Color3.fromRGB(0, 40, 60)
-counterFrame.BorderSizePixel = 0
-Instance.new("UICorner", counterFrame).CornerRadius = UDim.new(0, 8)
-local counterLabel = Instance.new("TextLabel", counterFrame)
-counterLabel.Size = UDim2.new(1, 0, 1, 0)
-counterLabel.BackgroundTransparency = 1
-counterLabel.Text = "🐟 Cá: 0"
-counterLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
-counterLabel.TextSize = 12
-counterLabel.Font = Enum.Font.GothamBold
+-- Stop button
+local stopBtn = Instance.new("TextButton", main)
+stopBtn.Size = UDim2.new(1, -10, 0, 35)
+stopBtn.Position = UDim2.new(0, 5, 1, -45)
+stopBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+stopBtn.BorderSizePixel = 0
+stopBtn.Text = "⏹ Dừng"
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.TextSize = 13
+stopBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", stopBtn).CornerRadius = UDim.new(0, 8)
 
-local cacheFrame = Instance.new("Frame", main)
-cacheFrame.Size = UDim2.new(0, 185, 0, 30)
-cacheFrame.Position = UDim2.new(0, 225, 0, 157)
-cacheFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 0)
-cacheFrame.BorderSizePixel = 0
-Instance.new("UICorner", cacheFrame).CornerRadius = UDim.new(0, 8)
-local cacheLabel = Instance.new("TextLabel", cacheFrame)
-cacheLabel.Size = UDim2.new(1, 0, 1, 0)
-cacheLabel.BackgroundTransparency = 1
-cacheLabel.Text = "📦 Cache: 0"
-cacheLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-cacheLabel.TextSize = 12
-cacheLabel.Font = Enum.Font.GothamBold
+-- Danh sách mob đã thấy (tránh trùng)
+local mobButtons = {}
 
--- ✅ Auto Cache
-local function openCache(item)
-	if cacheInProgress then return end
-	cacheInProgress = true
-	local char = player.Character
-	if not char then cacheInProgress = false return end
-	item.Parent = char
-	task.wait(0.3)
-	pcall(function() char:FindFirstChild(item.Name):Activate() end)
-	cacheCount = cacheCount + 1
-	cacheLabel.Text = "📦 Cache: " .. cacheCount
-	print("📦 Tự mở Cache!")
-	cacheInProgress = false
-end
-
-player.Backpack.ChildAdded:Connect(function(item)
-	if not cacheRunning then return end
-	if item.Name:find("Cache") then
-		task.wait(0.5)
-		task.spawn(function() openCache(item) end)
+local function refreshList()
+	for _, v in ipairs(scroll:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
 	end
-end)
+	mobButtons = {}
 
-btnCache.MouseButton1Click:Connect(function()
-	cacheRunning = not cacheRunning
-	if cacheRunning then
-		btnCache.Text = "📦 Auto Cache: BẬT"
-		btnCache.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-	else
-		btnCache.Text = "📦 Auto Cache: TẮT"
-		btnCache.BackgroundColor3 = Color3.fromRGB(60, 20, 80)
-	end
-end)
+	-- Gom tên mob unique
+	local seen = {}
+	for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+		local hum = mob:FindFirstChild("Humanoid")
+		if hum and hum.Health > 0 and not seen[mob.Name] then
+			seen[mob.Name] = true
 
--- Tìm Caught
-local function findCaught(rodName, char)
-	local locations = {
-		char:FindFirstChild(rodName),
-		player.Backpack:FindFirstChild(rodName),
-	}
-	for _, rod in ipairs(locations) do
-		if rod then
-			local caught = rod:FindFirstChild("Caught", true)
-			if caught then return caught end
+			local btn = Instance.new("TextButton", scroll)
+			btn.Size = UDim2.new(1, -5, 0, 30)
+			btn.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+			btn.BorderSizePixel = 0
+			btn.Text = "👾 " .. mob.Name
+			btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+			btn.TextSize = 11
+			btn.Font = Enum.Font.GothamBold
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+			local pad = Instance.new("UIPadding", btn)
+			pad.PaddingLeft = UDim.new(0, 8)
+
+			btn.MouseButton1Click:Connect(function()
+				selectedMob = mob.Name
+				statusLabel.Text = "✅ Chọn: " .. mob.Name
+				statusLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+				for _, b in ipairs(scroll:GetChildren()) do
+					if b:IsA("TextButton") then
+						b.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+					end
+				end
+				btn.BackgroundColor3 = Color3.fromRGB(0, 80, 160)
+			end)
+
+			table.insert(mobButtons, btn)
 		end
 	end
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj.Name == rodName then
-			local caught = obj:FindFirstChild("Caught", true)
-			if caught then return caught end
-		end
-	end
-	return nil
+
+	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 5)
+	print("✅ Làm mới xong! " .. #mobButtons .. " loại mob")
 end
 
--- ✅ Fishing loop
-local function fishingLoop(rodName)
-	local fishing = RS:WaitForChild("Fishing")
-	while running do
-		local char = player.Character or player.CharacterAdded:Wait()
-		local rod = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
-		if not rod then task.wait(1) continue end
-
-		-- Chờ cache xong trước khi reset cần
-		while cacheInProgress do task.wait(0.1) end
-
-		-- Reset cần
-		pcall(function()
-			local r = char:FindFirstChild(rodName)
-			if r then r.Parent = player.Backpack end
-		end)
-		task.wait(0.2)
-		pcall(function()
-			local r = player.Backpack:FindFirstChild(rodName)
-			if r then r.Parent = char end
-		end)
-		task.wait(0.2)
-
-		-- Thả cần
-		pcall(function()
-			local r = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
-			if r then
-				r:WaitForChild("Click"):FireServer(
-					vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
-				)
-			end
-		end)
-		print("🎣 Thả cần... chờ cá cắn")
-
-		-- Tìm Caught
-		local caught = nil
-		local t0 = 0
-		repeat
-			task.wait(0.2)
-			t0 = t0 + 0.2
-			caught = findCaught(rodName, char)
-		until caught ~= nil or t0 >= 5
-
-		if not caught then
-			print("⚠️ Không tìm thấy Caught, fallback 20s")
-			task.wait(20)
-		else
-			-- Chờ reset false
-			local tReset = 0
-			while caught.Value == true and tReset < 3 do
-				task.wait(0.1)
-				tReset = tReset + 0.1
-			end
-
-			-- Chờ cá cắn, timeout 35s
-			local t = 0
-			repeat
-				task.wait(0.1)
-				t = t + 0.1
-				if not running then break end
-			until caught.Value == true or t >= 35
-
-			if caught.Value == true then
-				print("🐟 Cá cắn! Đang kéo...")
-			else
-				print("⏰ Timeout, thử lại...")
-				continue
-			end
-		end
-
-		if not running then break end
-
-		-- Kéo cần
-		char = player.Character or player.CharacterAdded:Wait()
-		pcall(function()
-			local r = char:FindFirstChild(rodName) or player.Backpack:FindFirstChild(rodName)
-			if r then
-				r:WaitForChild("Click"):FireServer(
-					vector.create(7747.935546875, -5617.28759765625, 4095.056396484375)
-				)
-			end
-		end)
-		task.wait(0.5)
-		if not running then break end
-
-		-- Minigame
-		pcall(function() fishing:FireServer("Start", "Easy") end)
-		task.wait(0.3)
-		for i = 1, 10 do
-			if not running then break end
-			pcall(function() fishing:FireServer("Running", "Default") end)
-			task.wait(0.25)
-		end
-		task.wait(0.5)
-		if not running then break end
-
-		-- Finish
-		pcall(function() fishing:FireServer("Finish", 10) end)
-		fishCount = fishCount + 1
-		counterLabel.Text = "🐟 Cá: " .. fishCount
-		print("🐟 Nhận cá! Tổng: " .. fishCount)
-		task.wait(2)
+-- Pull logic
+local function startPull()
+	if not selectedMob then
+		statusLabel.Text = "❌ Chọn mob trước!"
+		statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
 	end
+	pulling = true
+	pullBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+	pullBtn.Text = "🔥 Đang kéo: " .. selectedMob
+	statusLabel.Text = "🔥 Kéo: " .. selectedMob
+
+	pullThread = task.spawn(function()
+		while pulling do
+			local char = player.Character
+			if not char then task.wait(0.1) continue end
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if not hrp then task.wait(0.1) continue end
+
+			for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+				if mob.Name ~= selectedMob then continue end
+				local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+				local hum = mob:FindFirstChild("Humanoid")
+				if not mobHrp or not hum or hum.Health <= 0 then continue end
+				mobHrp.CFrame = hrp.CFrame
+			end
+			task.wait(0.05)
+		end
+	end)
 end
 
-local function stopAll()
-	running = false
-	if currentThread then task.cancel(currentThread) currentThread = nil end
-	btnSuper.BackgroundColor3 = Color3.fromRGB(30, 80, 150)
-	btnWood.BackgroundColor3 = Color3.fromRGB(100, 60, 20)
-	btnSturdy.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-	btnSuper.Text = "🎣 Super Rod"
-	btnWood.Text = "🪵 Wood Rod"
-	btnSturdy.Text = "🪨 Sturdy Rod"
+local function stopPull()
+	pulling = false
+	if pullThread then
+		task.cancel(pullThread)
+		pullThread = nil
+	end
+	pullBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+	pullBtn.Text = "🔴 Kéo Mob"
+	statusLabel.Text = "⏹ Đã dừng"
+	statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 end
 
-btnSuper.MouseButton1Click:Connect(function()
-	if running then stopAll() return end
-	stopAll() running = true
-	btnSuper.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-	btnSuper.Text = "⏹ Dừng Super Rod"
-	currentThread = task.spawn(function() fishingLoop("Super Rod") end)
+refreshBtn.MouseButton1Click:Connect(refreshList)
+pullBtn.MouseButton1Click:Connect(function()
+	if pulling then stopPull() else startPull() end
+end)
+stopBtn.MouseButton1Click:Connect(stopPull)
+
+-- Auto refresh khi mob mới spawn
+workspace.Enemies.ChildAdded:Connect(function()
+	task.wait(0.5)
+	refreshList()
+end)
+workspace.Enemies.ChildRemoved:Connect(function()
+	task.wait(0.5)
+	refreshList()
 end)
 
-btnWood.MouseButton1Click:Connect(function()
-	if running then stopAll() return end
-	stopAll() running = true
-	btnWood.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-	btnWood.Text = "⏹ Dừng Wood Rod"
-	currentThread = task.spawn(function() fishingLoop("Wood Rod") end)
-end)
-
-btnSturdy.MouseButton1Click:Connect(function()
-	if running then stopAll() return end
-	stopAll() running = true
-	btnSturdy.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-	btnSturdy.Text = "⏹ Dừng Sturdy Rod"
-	currentThread = task.spawn(function() fishingLoop("Sturdy Rod") end)
-end)
-
-btnTP.MouseButton1Click:Connect(function()
-	local char = player.Character
-	if not char then return end
-	char:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(13802.7, 216.5, -8977.6)
-end)
-
-btnSell.MouseButton1Click:Connect(function()
-	local char = player.Character
-	if not char then return end
-	char:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(1987.3, 215, 567.9)
-end)
-
-local afkOn = false
-btnAFK.MouseButton1Click:Connect(function()
-	afkOn = not afkOn
-	if afkOn then
-		btnAFK.Text = "💤 Anti AFK: BẬT"
-		btnAFK.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-	else
-		btnAFK.Text = "💤 Anti AFK: TẮT"
-		btnAFK.BackgroundColor3 = Color3.fromRGB(60, 20, 80)
-	end
-end)
-
-Players.LocalPlayer.Idled:Connect(function()
-	if not afkOn then return end
-	VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-	task.wait(1)
-	VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-end)
-
-print("✅ Fishing Menu đã load!")
+refreshList()
+print("✅ Mob Puller đã load!")
