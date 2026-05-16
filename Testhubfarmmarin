@@ -1,0 +1,526 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local userFolder = "User_"..player.UserId
+
+-- ===================== GUI =====================
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false
+gui.Name = "MarineRaidFarm"
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 260, 0, 160)
+main.Position = UDim2.new(0, 10, 0.4, 0)
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(0, 150, 255)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(0, 80, 180)
+title.BorderSizePixel = 0
+title.Text = "⚓ Auto Farm Marine Raid"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 13
+title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+-- Wave & Mob display
+local infoFrame = Instance.new("Frame", main)
+infoFrame.Size = UDim2.new(1, -10, 0, 40)
+infoFrame.Position = UDim2.new(0, 5, 0, 40)
+infoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+infoFrame.BorderSizePixel = 0
+Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 8)
+
+local waveLabel = Instance.new("TextLabel", infoFrame)
+waveLabel.Size = UDim2.new(0.5, 0, 1, 0)
+waveLabel.BackgroundTransparency = 1
+waveLabel.Text = "Wave: --"
+waveLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+waveLabel.TextSize = 13
+waveLabel.Font = Enum.Font.GothamBold
+
+local mobLabel = Instance.new("TextLabel", infoFrame)
+mobLabel.Size = UDim2.new(0.5, 0, 1, 0)
+mobLabel.Position = UDim2.new(0.5, 0, 0, 0)
+mobLabel.BackgroundTransparency = 1
+mobLabel.Text = "Mob: --"
+mobLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+mobLabel.TextSize = 13
+mobLabel.Font = Enum.Font.GothamBold
+
+local statusLabel = Instance.new("TextLabel", main)
+statusLabel.Size = UDim2.new(1, -10, 0, 25)
+statusLabel.Position = UDim2.new(0, 5, 0, 85)
+statusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "Chờ bắt đầu..."
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamBold
+Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
+
+local startBtn = Instance.new("TextButton", main)
+startBtn.Size = UDim2.new(1, -10, 0, 38)
+startBtn.Position = UDim2.new(0, 5, 0, 115)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+startBtn.BorderSizePixel = 0
+startBtn.Text = "▶ Bắt đầu Farm"
+startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+startBtn.TextSize = 14
+startBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
+
+-- ===================== HELPERS =====================
+local farming = false
+local threads = {}
+
+local function getChar()
+	return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getHRP()
+	local char = getChar()
+	return char:FindFirstChild("HumanoidRootPart")
+end
+
+local function setStatus(text, color)
+	statusLabel.Text = text
+	statusLabel.TextColor3 = color or Color3.fromRGB(180, 180, 180)
+end
+
+local function getWave()
+	local raidGui = player.PlayerGui:FindFirstChild("Raid")
+	if raidGui then
+		local frame = raidGui:FindFirstChild("Frame")
+		if frame then
+			local w = frame:FindFirstChild("Wave")
+			local e = frame:FindFirstChild("Enemies")
+			local wave = w and tonumber(w.Text:match("%d+")) or 0
+			local mobs = e and tonumber(e.Text:match("%d+")) or 0
+			return wave, mobs
+		end
+	end
+	return 0, 0
+end
+
+local function updateDisplay()
+	task.spawn(function()
+		while farming do
+			local w, m = getWave()
+			waveLabel.Text = "Wave: " .. w
+			mobLabel.Text = "Mob: " .. m
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function tpTo(pos)
+	local hrp = getHRP()
+	if hrp then hrp.CFrame = CFrame.new(pos) end
+end
+
+local function tweenTo(pos, duration)
+	local hrp = getHRP()
+	if not hrp then return end
+	local tw = TweenService:Create(hrp, TweenInfo.new(duration or 1), {CFrame = CFrame.new(pos)})
+	tw:Play()
+	tw.Completed:Wait()
+end
+
+local function holdPosition(pos)
+	return task.spawn(function()
+		while farming do
+			local hrp = getHRP()
+			if hrp then hrp.CFrame = CFrame.new(pos) end
+			task.wait(0.05)
+		end
+	end)
+end
+
+local function cancelThreads()
+	for _, t in ipairs(threads) do
+		pcall(function() task.cancel(t) end)
+	end
+	threads = {}
+end
+
+-- ===================== SKILLS =====================
+local function useAquaStaff()
+	local part = workspace:FindFirstChild("Beach", true)
+	if part then
+		pcall(function()
+			ReplicatedStorage:WaitForChild("Connections")
+				:WaitForChild("SpecialFunction")
+				:FireServer(part.CFrame, part)
+		end)
+	end
+end
+
+local function useHaki()
+	pcall(function()
+		workspace:WaitForChild("UserData")
+			:WaitForChild(userFolder)
+			:WaitForChild("UpdateHaki")
+			:FireServer()
+	end)
+end
+
+local function useMagma2()
+	local char = getChar()
+	pcall(function()
+		char:WaitForChild("Powers"):WaitForChild("Magma"):WaitForChild("RemoteEvent"):FireServer("MagmaPower2")
+	end)
+end
+
+local function useMagma3()
+	local part = workspace:FindFirstChild("Part", true)
+	if part then
+		local char = getChar()
+		pcall(function()
+			char.Powers.Magma.RemoteEvent:FireServer("MagmaPower3", "Create", part.CFrame, part)
+		end)
+	end
+end
+
+local function useMagma4OnBoss(bossName)
+	local e = workspace.Enemies:FindFirstChild(bossName)
+	if e and e:FindFirstChild("HumanoidRootPart") then
+		local char = getChar()
+		pcall(function()
+			char.Powers.Magma.RemoteEvent:FireServer(
+				"MagmaPower4", "Create",
+				e.HumanoidRootPart.CFrame,
+				e:FindFirstChild("Left Arm") or e.HumanoidRootPart
+			)
+		end)
+	end
+end
+
+-- Pull tất cả mob về người
+local function pullMobs()
+	local hrp = getHRP()
+	if not hrp then return end
+	for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+		local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+		local hum = mob:FindFirstChild("Humanoid")
+		if mobHrp and hum and hum.Health > 0 then
+			local ai = mob:FindFirstChild("AI") or mob:FindFirstChild("AIGun")
+			if ai then ai.Disabled = true end
+			mobHrp.Anchored = true
+			mobHrp.CFrame = hrp.CFrame
+		end
+	end
+end
+
+-- Click đánh thường
+local function autoClick()
+	return task.spawn(function()
+		local vrs = game:GetService("VirtualInputManager")
+		while farming do
+			vrs:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+			task.wait(0.1)
+			vrs:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+			task.wait(0.1)
+		end
+	end)
+end
+
+-- Tạo stand parts cho boss
+local function createStandParts()
+	local positions = {
+		Vector3.new(290.5, 234.2, -638.8),
+		Vector3.new(249.2, 234.2, -163.3),
+		Vector3.new(-188.5, 234.2, -197.5),
+		Vector3.new(-250.3, 234.2, -667.3)
+	}
+	local parts = {}
+	for i, pos in ipairs(positions) do
+		local p = Instance.new("Part")
+		p.Name = "StandPart_" .. i
+		p.Size = Vector3.new(12, 2, 12)
+		p.Position = pos
+		p.Anchored = true
+		p.CanCollide = true
+		p.Material = Enum.Material.Neon
+		p.Color = Color3.fromRGB(0, 170, 255)
+		p.Transparency = 0.2
+		p.Parent = workspace
+		table.insert(parts, p)
+	end
+	return parts
+end
+
+local function removeStandParts()
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj.Name:find("StandPart_") then obj:Destroy() end
+	end
+end
+
+-- Chờ mob về 0
+local function waitForMobsClear()
+	repeat
+		task.wait(0.5)
+		local _, mobs = getWave()
+		if not farming then return end
+	until mobs <= 0
+end
+
+-- Chờ wave tiếp theo
+local function waitForNextWave(targetWave)
+	repeat
+		task.wait(0.5)
+		local w, _ = getWave()
+		if not farming then return end
+	until w >= targetWave
+end
+
+-- ===================== WAVE THƯỜNG =====================
+local SKY_POS = Vector3.new(-11.5, 942.8, -932.5)
+
+local function doNormalWave()
+	setStatus("🌊 Wave thường - Lên trời", Color3.fromRGB(0, 200, 255))
+
+	-- Cầm Aqua Staff slot 3
+	local vrs = game:GetService("VirtualInputManager")
+	vrs:SendKeyEvent(true, Enum.KeyCode.Three, false, game)
+	task.wait(0.1)
+	vrs:SendKeyEvent(false, Enum.KeyCode.Three, false, game)
+	task.wait(0.3)
+
+	-- Bật Haki
+	useHaki()
+	task.wait(0.3)
+
+	-- Tween lên trời
+	tweenTo(SKY_POS, 1.5)
+
+	-- Giữ vị trí trên trời
+	local holdThread = holdPosition(SKY_POS)
+	table.insert(threads, holdThread)
+
+	-- Spam Aqua Staff
+	local staffThread = task.spawn(function()
+		while farming do
+			useAquaStaff()
+			task.wait(0.3)
+		end
+	end)
+	table.insert(threads, staffThread)
+
+	-- Kéo mob liên tục
+	local pullThread = task.spawn(function()
+		while farming do
+			pullMobs()
+			task.wait(0.1)
+		end
+	end)
+	table.insert(threads, pullThread)
+
+	-- Bật MagmaPower2
+	local magmaThread = task.spawn(function()
+		while farming do
+			useMagma2()
+			task.wait(0.05)
+		end
+	end)
+	table.insert(threads, magmaThread)
+
+	-- Auto click
+	local clickThread = autoClick()
+	table.insert(threads, clickThread)
+end
+
+-- ===================== WAVE BOSS =====================
+local BOSS_POINTS = {
+	Vector3.new(290.5, 234.2, -638.8),
+	Vector3.new(249.2, 234.2, -163.3),
+	Vector3.new(-188.5, 234.2, -197.5),
+	Vector3.new(-250.3, 234.2, -667.3),
+}
+local BOSS_GROUND = Vector3.new(53.9, 217.1, -421.1)
+
+local function doBossWave(bossName)
+	setStatus("👹 Boss: " .. bossName, Color3.fromRGB(255, 100, 0))
+	cancelThreads()
+
+	-- Tạo stand parts
+	createStandParts()
+
+	-- Spam staff
+	local staffThread = task.spawn(function()
+		while farming do
+			useAquaStaff()
+			task.wait(0.3)
+		end
+	end)
+	table.insert(threads, staffThread)
+
+	-- Kéo boss về người
+	local pullThread = task.spawn(function()
+		while farming do
+			pullMobs()
+			task.wait(0.1)
+		end
+	end)
+	table.insert(threads, pullThread)
+
+	-- Loop tween 4 điểm + skill boss
+	local bossThread = task.spawn(function()
+		while farming do
+			-- Boss còn sống không
+			local boss = workspace.Enemies:FindFirstChild(bossName)
+			if not boss or not boss:FindFirstChild("Humanoid") or boss.Humanoid.Health <= 0 then
+				break
+			end
+
+			-- Tween qua 4 điểm
+			for _, pos in ipairs(BOSS_POINTS) do
+				if not farming then break end
+				local boss2 = workspace.Enemies:FindFirstChild(bossName)
+				if not boss2 or boss2.Humanoid.Health <= 0 then break end
+				tweenTo(pos, 0.5)
+				useMagma4OnBoss(bossName)
+				task.wait(0.2)
+			end
+
+			-- Xuống điểm 5
+			if not farming then break end
+			tweenTo(BOSS_GROUND, 0.5)
+			useMagma3()
+			task.wait(0.3)
+		end
+	end)
+	table.insert(threads, bossThread)
+
+	-- Chờ boss chết
+	repeat
+		task.wait(0.5)
+		local boss = workspace.Enemies:FindFirstChild(bossName)
+		if not farming then return end
+	until not boss or not boss:FindFirstChild("Humanoid") or boss.Humanoid.Health <= 0
+
+	setStatus("✅ Boss " .. bossName .. " đã chết!", Color3.fromRGB(0, 255, 100))
+	removeStandParts()
+	cancelThreads()
+	task.wait(1)
+end
+
+-- ===================== WAVE 15 QUAKEBOSS =====================
+local WAVE15_POS = Vector3.new(-735.5, 290.9, -38.1)
+
+local function doQuakeBoss()
+	setStatus("💥 QuakeBoss!", Color3.fromRGB(255, 50, 50))
+	cancelThreads()
+
+	-- TP đến điểm
+	tpTo(WAVE15_POS)
+	task.wait(2)
+
+	-- Freeze nhân vật
+	local hrp = getHRP()
+	if hrp then hrp.Anchored = true end
+
+	-- Spam skills liên tục
+	local skillThread = task.spawn(function()
+		while farming do
+			useMagma4OnBoss("QuakeBoss")
+			task.wait(0.1)
+			useMagma3()
+			task.wait(0.1)
+			useAquaStaff()
+			task.wait(0.1)
+		end
+	end)
+	table.insert(threads, skillThread)
+
+	-- Chờ boss chết
+	repeat
+		task.wait(0.5)
+		local boss = workspace.Enemies:FindFirstChild("QuakeBoss")
+		if not farming then break end
+	until not boss or not boss:FindFirstChild("Humanoid") or boss.Humanoid.Health <= 0
+
+	-- Unfreeze
+	if hrp then hrp.Anchored = false end
+	cancelThreads()
+	setStatus("✅ QuakeBoss đã chết!", Color3.fromRGB(0, 255, 100))
+end
+
+-- ===================== MAIN LOOP =====================
+local function startFarm()
+	farming = true
+	startBtn.Text = "⏹ Dừng"
+	startBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+	setStatus("🚀 Bắt đầu farm!", Color3.fromRGB(0, 255, 100))
+	updateDisplay()
+
+	task.spawn(function()
+		local currentWave = 0
+
+		while farming do
+			local wave, mobs = getWave()
+
+			-- Chờ raid bắt đầu
+			if wave == 0 then
+				setStatus("⏳ Chờ raid bắt đầu...", Color3.fromRGB(200, 200, 0))
+				task.wait(1)
+				continue
+			end
+
+			-- Xử lý theo wave
+			if wave ~= currentWave then
+				currentWave = wave
+				cancelThreads()
+
+				if wave == 5 then
+					-- Chờ boss spawn
+					task.wait(1)
+					doBossWave("ChillyBoss")
+				elseif wave == 10 then
+					task.wait(1)
+					doBossWave("MagmaBoss")
+				elseif wave == 15 then
+					task.wait(1)
+					doQuakeBoss()
+				else
+					doNormalWave()
+				end
+			end
+
+			-- Theo dõi mob về 0 để chuyển wave
+			if wave ~= 5 and wave ~= 10 and wave ~= 15 then
+				waitForMobsClear()
+			end
+
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function stopFarm()
+	farming = false
+	cancelThreads()
+	removeStandParts()
+	local hrp = getHRP()
+	if hrp then hrp.Anchored = false end
+	startBtn.Text = "▶ Bắt đầu Farm"
+	startBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+	setStatus("⏹ Đã dừng", Color3.fromRGB(180, 180, 180))
+	waveLabel.Text = "Wave: --"
+	mobLabel.Text = "Mob: --"
+end
+
+startBtn.MouseButton1Click:Connect(function()
+	if farming then stopFarm() else startFarm() end
+end)
+
+print("✅ Auto Farm Marine Raid đã load!")
