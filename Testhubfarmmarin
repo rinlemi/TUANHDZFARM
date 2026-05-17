@@ -143,7 +143,7 @@ local function tpTo(pos)
 	if hrp then hrp.CFrame = CFrame.new(pos) end
 end
 
--- ✅ AUTO HAKI CHECK (method mới)
+-- ✅ HAKI CHECK
 local function IsHakiOn()
 	local char = getChar()
 	local arm = char:FindFirstChild("Right Arm")
@@ -151,23 +151,13 @@ local function IsHakiOn()
 	return arm.Transparency == 1
 end
 
--- ✅ AUTO MAGMA2 CHECK (method mới)
+-- ✅ MAGMA2 CHECK (màu đỏ arm)
 local function IsMagmaOn()
 	local char = getChar()
 	local arm = char:FindFirstChild("Right Arm")
 	if not arm then return false end
 	local c = arm.Color
 	return c.R > 0.5 and c.G < 0.3 and c.B < 0.3
-end
-
-local function UseMagma2()
-	local char = getChar()
-	pcall(function()
-		char:WaitForChild("Powers")
-			:WaitForChild("Magma")
-			:WaitForChild("RemoteEvent")
-			:FireServer("MagmaPower2")
-	end)
 end
 
 local function UseHaki()
@@ -177,6 +167,18 @@ local function UseHaki()
 			:WaitForChild("UpdateHaki")
 			:FireServer()
 	end)
+end
+
+local function UseMagma2()
+	if IsMagmaOn() then return end -- check trước khi bật tránh toggle
+	pcall(function()
+		local char = getChar()
+		char:WaitForChild("Powers")
+			:WaitForChild("Magma")
+			:WaitForChild("RemoteEvent")
+			:FireServer("MagmaPower2")
+	end)
+	task.wait(1.5) -- chờ arm đổi màu
 end
 
 -- ✅ Thread tự động giữ Haki + Magma2 luôn bật
@@ -189,12 +191,13 @@ local function startAutoBuffs()
 			if not IsHakiOn() then
 				UseHaki()
 				print("🔵 Bật Haki")
+				task.wait(1)
 			end
 			if not IsMagmaOn() then
 				UseMagma2()
 				print("🔥 Bật Magma2")
 			end
-			task.wait(1)
+			task.wait(2)
 		end
 	end)
 end
@@ -227,14 +230,6 @@ local function useAquaStaff()
 	end)
 end
 
-local function useMagma2()
-	local char = getChar()
-	pcall(function()
-		char:WaitForChild("Powers"):WaitForChild("Magma")
-			:WaitForChild("RemoteEvent"):FireServer("MagmaPower2")
-	end)
-end
-
 local function useMagma3()
 	local part = workspace:FindFirstChild("Part", true)
 	if part then
@@ -262,15 +257,23 @@ end
 -- ✅ MagmaPower1 quăng vào boss mỗi 5 giây
 local function startMagma1OnBoss(bossName)
 	return task.spawn(function()
-		while farming and isBossAlive(bossName) do
+		while farming do
 			local mob = workspace.Enemies:FindFirstChild(bossName)
-			if mob and mob:FindFirstChild("WeldToHead") then
+			if not mob then
+				task.wait(1)
+				continue
+			end
+			local hum = mob:FindFirstChild("Humanoid")
+			if not hum or hum.Health <= 0 then break end
+
+			local target = mob:FindFirstChild("WeldToHead") or mob:FindFirstChild("HumanoidRootPart")
+			if target then
 				pcall(function()
 					player.Character.Powers.Magma.RemoteEvent:FireServer(
 						"MagmaPower1",
 						"StopCharging",
-						mob.WeldToHead.CFrame,
-						mob.WeldToHead,
+						target.CFrame,
+						target,
 						"Right"
 					)
 				end)
@@ -279,6 +282,22 @@ local function startMagma1OnBoss(bossName)
 			task.wait(5)
 		end
 	end)
+end
+
+local function isBossAlive(bossName)
+	local boss = workspace.Enemies:FindFirstChild(bossName)
+	return boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0
+end
+
+local function waitForBossSpawn(bossName)
+	setStatus("⏳ Chờ "..bossName.." spawn...", Color3.fromRGB(255,200,0))
+	local t = 0
+	repeat
+		task.wait(0.5)
+		t = t + 0.5
+		if not farming then return false end
+	until isBossAlive(bossName) or t >= 30
+	return isBossAlive(bossName)
 end
 
 local function pullMobs()
@@ -304,22 +323,6 @@ local function equipAquaStaff()
 	task.wait(0.1)
 	vrs:SendKeyEvent(false, Enum.KeyCode.Three, false, game)
 	task.wait(0.3)
-end
-
-local function isBossAlive(bossName)
-	local boss = workspace.Enemies:FindFirstChild(bossName)
-	return boss and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0
-end
-
-local function waitForBossSpawn(bossName)
-	setStatus("⏳ Chờ "..bossName.." spawn...", Color3.fromRGB(255,200,0))
-	local t = 0
-	repeat
-		task.wait(0.5)
-		t = t + 0.5
-		if not farming then return false end
-	until isBossAlive(bossName) or t >= 30
-	return isBossAlive(bossName)
 end
 
 -- BACKGROUND THREADS
@@ -374,7 +377,7 @@ local function removeStandParts()
 	end
 end
 
--- ✅ NORMAL WAVE - chỉ bật buff lần đầu, autoBuffs thread lo phần còn lại
+-- NORMAL WAVE
 local function startNormalWave()
 	stopNormalThreads()
 	setStatus("🌊 Wave thường - Lên trời", Color3.fromRGB(0,200,255))
@@ -390,9 +393,8 @@ local function waitForWaveComplete(currentWave)
 	repeat
 		task.wait(0.5)
 		spawnWait = spawnWait + 0.5
-		local _, mobs = getWave()
 		if not farming then return end
-	until mobs > 0 or spawnWait >= 10
+	until select(2, getWave()) > 0 or spawnWait >= 10
 
 	setStatus("⚔️ Đang diệt wave "..currentWave.."...", Color3.fromRGB(255,150,0))
 	repeat
@@ -400,12 +402,12 @@ local function waitForWaveComplete(currentWave)
 		local w, mobs = getWave()
 		if not farming then return end
 		if w ~= currentWave then return end
-	until mobs <= 0
+	until select(2, getWave()) <= 0
 
 	setStatus("✅ Wave "..currentWave.." xong!", Color3.fromRGB(0,255,100))
 end
 
--- ✅ BOSS WAVE - giữ autoBuffs chạy, thêm Magma1 mỗi 5s
+-- BOSS WAVE
 local function doBossWave(bossName)
 	stopNormalThreads()
 
@@ -425,7 +427,6 @@ local function doBossWave(bossName)
 		for _, pos in ipairs(BOSS_TWEEN_POINTS) do
 			if not farming or not isBossAlive(bossName) then break end
 			tweenTo(pos, 0.3)
-
 			local elapsed = 0
 			while farming and isBossAlive(bossName) and elapsed < STAND_TIME do
 				useMagma4OnBoss(bossName)
@@ -452,7 +453,7 @@ local function doBossWave(bossName)
 	task.wait(1)
 end
 
--- ✅ QUAKE BOSS - giữ autoBuffs, thêm Magma1
+-- QUAKE BOSS
 local function doQuakeBoss()
 	stopNormalThreads()
 
