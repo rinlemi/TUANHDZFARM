@@ -421,7 +421,7 @@ local function doQuakeBoss()
 
 	setStatus("💥 QuakeBoss!", Color3.fromRGB(255,50,50))
 	tpTo(WAVE15_POS)
-	task.wait(2)
+	task.wait(3)
 
 	local hrp = getHRP()
 	if hrp then hrp.Anchored = true end
