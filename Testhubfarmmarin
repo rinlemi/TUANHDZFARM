@@ -79,18 +79,17 @@ Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 8)
 -- STATE
 local farming = false
 local normalThreads = {}
+local autoBuffThread = nil
 local SKY_POS = Vector3.new(-11.5, 942.8, -932.5)
 local GROUND_POS = Vector3.new(-11.5, 219, -932.5)
 local WAVE15_POS = Vector3.new(-735.5, 290.9, -38.1)
 
--- ✅ Tween điểm boss tăng Y lên 2
 local BOSS_TWEEN_POINTS = {
 	Vector3.new(290.5, 236.2, -638.8),
 	Vector3.new(249.2, 236.2, -163.3),
 	Vector3.new(-188.5, 236.2, -197.5),
 	Vector3.new(-250.3, 236.2, -667.3),
 }
--- Part vẫn giữ nguyên Y cũ
 local BOSS_POINTS = {
 	Vector3.new(290.5, 234.2, -638.8),
 	Vector3.new(249.2, 234.2, -163.3),
@@ -144,8 +143,70 @@ local function tpTo(pos)
 	if hrp then hrp.CFrame = CFrame.new(pos) end
 end
 
+-- ✅ AUTO HAKI CHECK (method mới)
+local function IsHakiOn()
+	local char = getChar()
+	local arm = char:FindFirstChild("Right Arm")
+	if not arm then return false end
+	return arm.Transparency == 1
+end
+
+-- ✅ AUTO MAGMA2 CHECK (method mới)
+local function IsMagmaOn()
+	local char = getChar()
+	local arm = char:FindFirstChild("Right Arm")
+	if not arm then return false end
+	local c = arm.Color
+	return c.R > 0.5 and c.G < 0.3 and c.B < 0.3
+end
+
+local function UseMagma2()
+	local char = getChar()
+	pcall(function()
+		char:WaitForChild("Powers")
+			:WaitForChild("Magma")
+			:WaitForChild("RemoteEvent")
+			:FireServer("MagmaPower2")
+	end)
+end
+
+local function UseHaki()
+	pcall(function()
+		workspace:WaitForChild("UserData")
+			:WaitForChild(userFolder)
+			:WaitForChild("UpdateHaki")
+			:FireServer()
+	end)
+end
+
+-- ✅ Thread tự động giữ Haki + Magma2 luôn bật
+local function startAutoBuffs()
+	if autoBuffThread then
+		pcall(function() task.cancel(autoBuffThread) end)
+	end
+	autoBuffThread = task.spawn(function()
+		while farming do
+			if not IsHakiOn() then
+				UseHaki()
+				print("🔵 Bật Haki")
+			end
+			if not IsMagmaOn() then
+				UseMagma2()
+				print("🔥 Bật Magma2")
+			end
+			task.wait(1)
+		end
+	end)
+end
+
+local function stopAutoBuffs()
+	if autoBuffThread then
+		pcall(function() task.cancel(autoBuffThread) end)
+		autoBuffThread = nil
+	end
+end
+
 -- SKILLS
--- ✅ Aqua Staff path mới
 local function useAquaStaff()
 	pcall(function()
 		local part = workspace:WaitForChild("IslandForest")
@@ -163,25 +224,6 @@ local function useAquaStaff()
 				),
 				part
 			)
-	end)
-end
-
--- ✅ Haki bật/tắt riêng
-local function hakiOn()
-	pcall(function()
-		workspace:WaitForChild("UserData")
-			:WaitForChild(userFolder)
-			:WaitForChild("UpdateHaki")
-			:FireServer()
-	end)
-end
-
-local function hakiOff()
-	pcall(function()
-		workspace:WaitForChild("UserData")
-			:WaitForChild(userFolder)
-			:WaitForChild("UpdateHaki")
-			:FireServer()
 	end)
 end
 
@@ -217,13 +259,26 @@ local function useMagma4OnBoss(bossName)
 	end
 end
 
--- ✅ Dùng skill boss với haki theo đúng thứ tự
-local function useSkillWithHaki(skillFunc)
-	hakiOn()
-	task.wait(0.5)
-	skillFunc()
-	task.wait(1.5)
-	hakiOff()
+-- ✅ MagmaPower1 quăng vào boss mỗi 5 giây
+local function startMagma1OnBoss(bossName)
+	return task.spawn(function()
+		while farming and isBossAlive(bossName) do
+			local mob = workspace.Enemies:FindFirstChild(bossName)
+			if mob and mob:FindFirstChild("WeldToHead") then
+				pcall(function()
+					player.Character.Powers.Magma.RemoteEvent:FireServer(
+						"MagmaPower1",
+						"StopCharging",
+						mob.WeldToHead.CFrame,
+						mob.WeldToHead,
+						"Right"
+					)
+				end)
+				print("🌋 MagmaPower1 → "..bossName)
+			end
+			task.wait(5)
+		end
+	end)
 end
 
 local function pullMobs()
@@ -319,17 +374,10 @@ local function removeStandParts()
 	end
 end
 
--- ✅ NORMAL WAVE - Haki bật 1 lần không tắt mở liên tục
+-- ✅ NORMAL WAVE - chỉ bật buff lần đầu, autoBuffs thread lo phần còn lại
 local function startNormalWave()
 	stopNormalThreads()
 	setStatus("🌊 Wave thường - Lên trời", Color3.fromRGB(0,200,255))
-
-	-- Bật haki 1 lần
-	hakiOn()
-	task.wait(0.5)
-	-- Bật Magma2 1 lần
-	useMagma2()
-
 	tweenTo(SKY_POS, 1.5)
 	table.insert(normalThreads, startHoldPos(SKY_POS))
 	table.insert(normalThreads, startStaffSpam())
@@ -357,13 +405,9 @@ local function waitForWaveComplete(currentWave)
 	setStatus("✅ Wave "..currentWave.." xong!", Color3.fromRGB(0,255,100))
 end
 
--- ✅ BOSS WAVE - Haki theo thứ tự: bật → skill → tắt
+-- ✅ BOSS WAVE - giữ autoBuffs chạy, thêm Magma1 mỗi 5s
 local function doBossWave(bossName)
 	stopNormalThreads()
-
-	-- Tắt haki và magma2 trước khi boss
-	hakiOff()
-	task.wait(0.3)
 
 	local spawned = waitForBossSpawn(bossName)
 	if not spawned then
@@ -375,48 +419,42 @@ local function doBossWave(bossName)
 	createStandParts()
 
 	local staffThread = startStaffSpam()
+	local magma1Thread = startMagma1OnBoss(bossName)
 
 	while farming and isBossAlive(bossName) do
-		-- Tween qua 4 điểm (Y cao hơn 2)
 		for _, pos in ipairs(BOSS_TWEEN_POINTS) do
 			if not farming or not isBossAlive(bossName) then break end
 			tweenTo(pos, 0.3)
 
-			-- Haki trước → skill → tắt haki
 			local elapsed = 0
 			while farming and isBossAlive(bossName) and elapsed < STAND_TIME do
-				useSkillWithHaki(function()
-					useMagma4OnBoss(bossName)
-				end)
-				elapsed = elapsed + 2
+				useMagma4OnBoss(bossName)
+				task.wait(0.5)
+				elapsed = elapsed + 0.5
 			end
 		end
 
 		if not farming or not isBossAlive(bossName) then break end
 
-		-- Xuống điểm 5
 		tweenTo(BOSS_GROUND, 0.3)
 		local elapsed = 0
 		while farming and isBossAlive(bossName) and elapsed < STAND_TIME do
-			useSkillWithHaki(function()
-				useMagma3()
-			end)
-			elapsed = elapsed + 2
+			useMagma3()
+			task.wait(0.5)
+			elapsed = elapsed + 0.5
 		end
 	end
 
 	pcall(function() task.cancel(staffThread) end)
+	pcall(function() task.cancel(magma1Thread) end)
 	removeStandParts()
-	hakiOff()
 	setStatus("✅ "..bossName.." đã chết!", Color3.fromRGB(0,255,100))
 	task.wait(1)
 end
 
--- QUAKE BOSS
+-- ✅ QUAKE BOSS - giữ autoBuffs, thêm Magma1
 local function doQuakeBoss()
 	stopNormalThreads()
-	hakiOff()
-	task.wait(0.3)
 
 	local spawned = waitForBossSpawn("QuakeBoss")
 	if not spawned then
@@ -432,23 +470,23 @@ local function doQuakeBoss()
 	if hrp then hrp.Anchored = true end
 
 	local staffThread = startStaffSpam()
+	local magma1Thread = startMagma1OnBoss("QuakeBoss")
 
 	local skillThread = task.spawn(function()
 		while farming and isBossAlive("QuakeBoss") do
-			useSkillWithHaki(function()
-				useMagma4OnBoss("QuakeBoss")
-				task.wait(0.1)
-				useMagma3()
-			end)
+			useMagma4OnBoss("QuakeBoss")
+			task.wait(0.1)
+			useMagma3()
+			task.wait(0.5)
 		end
 	end)
 
 	repeat task.wait(0.5) until not isBossAlive("QuakeBoss") or not farming
 
 	pcall(function() task.cancel(staffThread) end)
+	pcall(function() task.cancel(magma1Thread) end)
 	pcall(function() task.cancel(skillThread) end)
 	if hrp then hrp.Anchored = false end
-	hakiOff()
 	setStatus("✅ QuakeBoss đã chết!", Color3.fromRGB(0,255,100))
 	task.wait(1)
 end
@@ -459,6 +497,9 @@ local function startFarm()
 	startBtn.Text = "⏹ Dừng"
 	startBtn.BackgroundColor3 = Color3.fromRGB(180,0,0)
 	setStatus("🚀 Bắt đầu farm!", Color3.fromRGB(0,255,100))
+
+	-- ✅ Bật auto haki + magma2 ngay khi bắt đầu
+	startAutoBuffs()
 
 	task.spawn(function()
 		while farming do
@@ -495,8 +536,6 @@ local function startFarm()
 					startNormalWave()
 					waitForWaveComplete(wave)
 					stopNormalThreads()
-					-- Tắt haki và magma2 khi xong wave thường
-					hakiOff()
 					tweenTo(GROUND_POS, 2)
 					setStatus("⏳ Chờ wave tiếp...", Color3.fromRGB(200,200,0))
 					repeat
@@ -515,8 +554,8 @@ end
 local function stopFarm()
 	farming = false
 	stopNormalThreads()
+	stopAutoBuffs()
 	removeStandParts()
-	hakiOff()
 	local hrp = getHRP()
 	if hrp then hrp.Anchored = false end
 	startBtn.Text = "▶ Bắt đầu Farm"
