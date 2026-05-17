@@ -89,7 +89,7 @@ local BOSS_POINTS = {
 	Vector3.new(-250.3, 234.2, -667.3),
 }
 local BOSS_GROUND = Vector3.new(53.9, 217.1, -421.1)
-local STAND_TIME = 2
+local STAND_TIME = 1
 
 -- HELPERS
 local function getChar() return player.Character or player.CharacterAdded:Wait() end
@@ -383,7 +383,7 @@ local function doBossWave(bossName)
 	while farming and isBossAlive(bossName) do
 		for _, pos in ipairs(BOSS_POINTS) do
 			if not farming or not isBossAlive(bossName) then break end
-			tweenTo(pos, 0.8)
+			tweenTo(pos, 0.3)
 			local elapsed = 0
 			while farming and isBossAlive(bossName) and elapsed < STAND_TIME do
 				useMagma4OnBoss(bossName)
@@ -394,7 +394,7 @@ local function doBossWave(bossName)
 
 		if not farming or not isBossAlive(bossName) then break end
 
-		tweenTo(BOSS_GROUND, 0.8)
+		tweenTo(BOSS_GROUND, 0.3)
 		local elapsed = 0
 		while farming and isBossAlive(bossName) and elapsed < STAND_TIME do
 			useMagma3()
