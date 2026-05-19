@@ -1,0 +1,221 @@
+local RS = game:GetService("ReplicatedStorage")
+
+local function getPlaceRF()
+    return RS.Packages._Index["sleitnick_knit@1.7.0"].knit.Services.TowerService.RF.PlaceUnit
+end
+
+local function getUpgradeRF()
+    return RS.Packages._Index["sleitnick_knit@1.7.0"].knit.Services.TowerService.RF.UpgradeUnit
+end
+
+local recording = {}
+local isRecording = false
+local isReplaying = false
+
+-- Hook để record
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    if isRecording and method == "InvokeServer" then
+        if self.Name == "PlaceUnit" then
+            table.insert(recording, {
+                type = "place",
+                time = tick(),
+                args = {args[1], args[2]}
+            })
+            print("📍 Record Place:", args[1], args[2])
+
+        elseif self.Name == "UpgradeUnit" then
+            table.insert(recording, {
+                type = "upgrade",
+                time = tick(),
+                args = {args[1]}
+            })
+            print("⬆️ Record Upgrade:", args[1])
+        end
+    end
+
+    return oldNamecall(self, ...)
+end
+
+setreadonly(mt, true)
+
+-- Replay
+local function replay()
+    if #recording == 0 then
+        print("❌ Chưa có gì được record!")
+        return
+    end
+
+    isReplaying = true
+    print("▶️ Bắt đầu replay", #recording, "actions...")
+
+    for i, action in ipairs(recording) do
+        if not isReplaying then break end
+
+        if i > 1 then
+            local delay = recording[i].time - recording[i-1].time
+            task.wait(delay)
+        end
+
+        if not isReplaying then break end
+
+        pcall(function()
+            if action.type == "place" then
+                getPlaceRF():InvokeServer(unpack(action.args))
+                print("📍 Replay Place:", action.args[1])
+
+            elseif action.type == "upgrade" then
+                getUpgradeRF():InvokeServer(unpack(action.args))
+                print("⬆️ Replay Upgrade:", action.args[1])
+            end
+        end)
+    end
+
+    print("✅ Replay xong!")
+    isReplaying = false
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false
+gui.Name = "RecordReplay"
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 210, 0, 175)
+frame.Position = UDim2.new(0, 10, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(0, 180, 255)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(0, 80, 180)
+title.BorderSizePixel = 0
+title.Text = "🎮 Record & Replay"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 13
+title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+
+local countLabel = Instance.new("TextLabel", frame)
+countLabel.Size = UDim2.new(1, -10, 0, 20)
+countLabel.Position = UDim2.new(0, 5, 0, 32)
+countLabel.BackgroundTransparency = 1
+countLabel.Text = "📋 Actions: 0"
+countLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+countLabel.TextSize = 11
+countLabel.Font = Enum.Font.GothamBold
+
+local function makeBtn(text, y, color)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(1, -10, 0, 32)
+    btn.Position = UDim2.new(0, 5, 0, y)
+    btn.BackgroundColor3 = color
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    return btn
+end
+
+local btnRecord = makeBtn("⏺ Bắt đầu Record", 55, Color3.fromRGB(180, 0, 0))
+local btnStop   = makeBtn("⏹ Dừng Record", 92, Color3.fromRGB(80, 80, 80))
+local btnReplay = makeBtn("▶️ Replay 1 lần", 129, Color3.fromRGB(0, 120, 0))
+local btnLoop   = makeBtn("🔁 Loop Replay: TẮT", 166, Color3.fromRGB(60, 20, 80))
+
+-- resize frame
+frame.Size = UDim2.new(0, 210, 0, 205)
+
+local loopReplay = false
+local loopThread = nil
+
+btnRecord.MouseButton1Click:Connect(function()
+    if isReplaying then
+        print("❌ Đang replay, dừng lại trước!")
+        return
+    end
+    recording = {}
+    isRecording = true
+    countLabel.Text = "📋 Actions: 0"
+    btnRecord.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    btnRecord.Text = "🔴 Đang Record..."
+    print("⏺ Đang record! Hãy đặt và nâng cấp unit!")
+end)
+
+btnStop.MouseButton1Click:Connect(function()
+    isRecording = false
+    btnRecord.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+    btnRecord.Text = "⏺ Bắt đầu Record"
+    countLabel.Text = "📋 Actions: " .. #recording
+    print("⏹ Dừng record! Đã lưu", #recording, "actions")
+end)
+
+-- Cập nhật count khi record
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if isRecording then
+            countLabel.Text = "📋 Actions: " .. #recording
+        end
+    end
+end)
+
+btnReplay.MouseButton1Click:Connect(function()
+    if isReplaying then
+        isReplaying = false
+        btnReplay.Text = "▶️ Replay 1 lần"
+        btnReplay.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        print("⏹ Dừng replay!")
+        return
+    end
+    btnReplay.Text = "⏹ Dừng Replay"
+    btnReplay.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    task.spawn(function()
+        replay()
+        btnReplay.Text = "▶️ Replay 1 lần"
+        btnReplay.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+    end)
+end)
+
+btnLoop.MouseButton1Click:Connect(function()
+    loopReplay = not loopReplay
+    if loopReplay then
+        btnLoop.Text = "🔁 Loop Replay: BẬT"
+        btnLoop.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        loopThread = task.spawn(function()
+            while loopReplay do
+                replay()
+                if loopReplay then
+                    print("🔁 Lặp lại sau 2s...")
+                    task.wait(2)
+                end
+            end
+        end)
+    else
+        btnLoop.Text = "🔁 Loop Replay: TẮT"
+        btnLoop.BackgroundColor3 = Color3.fromRGB(60, 20, 80)
+        isReplaying = false
+        if loopThread then
+            pcall(function() task.cancel(loopThread) end)
+            loopThread = nil
+        end
+        print("⏹ Dừng loop!")
+    end
+end)
+
+print("✅ Record/Replay loaded!")
+print("1. Bấm Record → đặt unit → nâng cấp")
+print("2. Bấm Stop → Replay hoặc Loop")
