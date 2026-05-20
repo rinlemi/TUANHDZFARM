@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 gui.Name = "AutoClick"
-gui.IgnoreGuiInset = true
+gui.IgnoreGuiInset = false -- ✅ đổi thành false
 
 -- ========== CONTROL PANEL ==========
 local panel = Instance.new("Frame", gui)
@@ -78,35 +78,34 @@ dragLabel.TextSize = 22
 dragLabel.Font = Enum.Font.GothamBold
 dragLabel.ZIndex = 11
 
--- ========== DRAG LOGIC dùng RunService ==========
+-- ========== DRAG LOGIC ==========
 local dragging = false
-local dragOffsetX = 0
-local dragOffsetY = 0
+local lastMousePos = nil
 
 clickPoint.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
-        local mousePos = UserInputService:GetMouseLocation()
-        local absPos = clickPoint.AbsolutePosition
-        dragOffsetX = mousePos.X - absPos.X
-        dragOffsetY = mousePos.Y - absPos.Y
+        lastMousePos = UserInputService:GetMouseLocation()
     end
 end)
 
-clickPoint.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
+        lastMousePos = nil
     end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if dragging then
-        local mousePos = UserInputService:GetMouseLocation()
+    if dragging and lastMousePos then
+        local currentMouse = UserInputService:GetMouseLocation()
+        local delta = currentMouse - lastMousePos
+        lastMousePos = currentMouse
+
+        local currentPos = clickPoint.Position
         clickPoint.Position = UDim2.new(
-            0, mousePos.X - dragOffsetX,
-            0, mousePos.Y - dragOffsetY
+            0, currentPos.X.Offset + delta.X,
+            0, currentPos.Y.Offset + delta.Y
         )
     end
 end)
@@ -131,7 +130,7 @@ local function startAutoClick()
 
     clickThread = task.spawn(function()
         while autoRunning do
-            if not dragging then -- không click khi đang kéo
+            if not dragging then
                 local pos = getClickPos()
                 VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
                 task.wait(0.05)
@@ -162,4 +161,4 @@ btnOff.MouseButton1Click:Connect(function()
     stopAutoClick()
 end)
 
-print("✅ Auto Click loaded! Kéo hình tròn xanh rồi bấm Bật!")
+print("✅ Auto Click loaded!")
