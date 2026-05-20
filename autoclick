@@ -1,5 +1,5 @@
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local VIM = game:GetService("VirtualInputManager")
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
@@ -22,7 +22,7 @@ local title = Instance.new("TextLabel", panel)
 title.Size = UDim2.new(1, 0, 0, 32)
 title.BackgroundColor3 = Color3.fromRGB(0, 80, 180)
 title.BorderSizePixel = 0
-title.Text = "🖱️ Auto Click"
+title.Text = "🖱️ Auto Roll"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextSize = 13
 title.Font = Enum.Font.GothamBold
@@ -54,10 +54,10 @@ end
 local btnOn  = makeBtn("▶ Bật", 5, 70, 80, Color3.fromRGB(0, 140, 0))
 local btnOff = makeBtn("⏹ Tắt", 93, 70, 80, Color3.fromRGB(160, 0, 0))
 
--- CLICK POINT
+-- ✅ Hình tròn đặt đúng vị trí nút ROLL (góc dưới phải)
 local clickPoint = Instance.new("Frame", gui)
 clickPoint.Size = UDim2.new(0, 36, 0, 36)
-clickPoint.Position = UDim2.new(0.5, -18, 0.5, -18)
+clickPoint.Position = UDim2.new(1, -100, 1, -60) -- góc dưới phải gần nút ROLL
 clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
 clickPoint.BorderSizePixel = 0
 clickPoint.Active = true
@@ -82,7 +82,8 @@ local dragInput = nil
 local lastPos = nil
 
 clickPoint.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragInput = input
         lastPos = Vector2.new(input.Position.X, input.Position.Y)
@@ -112,7 +113,6 @@ end)
 -- AUTO CLICK
 local autoRunning = false
 local clickThread = nil
-local VIM = game:GetService("VirtualInputManager")
 
 local function getClickPos()
     local abs = clickPoint.AbsolutePosition
@@ -122,7 +122,7 @@ end
 
 local function startAutoClick()
     autoRunning = true
-    statusLabel.Text = "✅ Đang click..."
+    statusLabel.Text = "✅ Đang roll..."
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
     clickPoint.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
     pointStroke.Color = Color3.fromRGB(255, 200, 0)
@@ -138,7 +138,7 @@ local function startAutoClick()
                 pcall(function()
                     VIM:SendTouchEvent(0, Enum.UserInputState.End, pos.X, pos.Y)
                 end)
-                task.wait(0.3) -- delay giữa mỗi lần click để game kịp xử lý
+                task.wait(0.5)
             end
             task.wait(0.05)
         end
@@ -165,4 +165,19 @@ btnOff.MouseButton1Click:Connect(function()
     stopAutoClick()
 end)
 
-print("✅ Kéo hình tròn vào nút ROLL rồi bấm Bật!")
+-- ✅ Snap button: bấm để đặt hình tròn đúng vào nút ROLL tự động
+local snapBtn = makeBtn("🎯 Snap to ROLL", 5, 108, 168, Color3.fromRGB(100, 50, 0))
+panel.Size = UDim2.new(0, 180, 0, 148)
+
+snapBtn.MouseButton1Click:Connect(function()
+    local player = game.Players.LocalPlayer
+    pcall(function()
+        local rollBtn = player.PlayerGui.Interface.Customisation.Family.Buttons_2.Roll
+        local abs = rollBtn.AbsolutePosition
+        local size = rollBtn.AbsoluteSize
+        clickPoint.Position = UDim2.new(0, abs.X + size.X/2 - 18, 0, abs.Y + size.Y/2 - 18)
+        print("✅ Snap xong! Hình tròn đã đặt đúng nút ROLL")
+    end)
+end)
+
+print("✅ Bấm 'Snap to ROLL' để đặt tự động vào nút ROLL, rồi bấm Bật!")
