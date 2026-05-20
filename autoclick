@@ -56,77 +56,70 @@ end
 local btnOn  = makeBtn("▶ Bật", 5, 70, 80, Color3.fromRGB(0, 140, 0))
 local btnOff = makeBtn("⏹ Tắt", 93, 70, 80, Color3.fromRGB(160, 0, 0))
 
--- ========== CLICK POINT (hình tròn kéo được) ==========
+-- ========== CLICK POINT ==========
 local clickPoint = Instance.new("Frame", gui)
-clickPoint.Size = UDim2.new(0, 40, 0, 40)
-clickPoint.Position = UDim2.new(0.5, -20, 0.5, -20)
+clickPoint.Size = UDim2.new(0, 44, 0, 44)
+clickPoint.Position = UDim2.new(0.5, -22, 0.5, -22)
 clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
 clickPoint.BorderSizePixel = 0
 clickPoint.Active = true
+clickPoint.ZIndex = 10
 Instance.new("UICorner", clickPoint).CornerRadius = UDim.new(1, 0)
 local pointStroke = Instance.new("UIStroke", clickPoint)
 pointStroke.Color = Color3.fromRGB(255, 255, 255)
 pointStroke.Thickness = 2
-
-local centerDot = Instance.new("Frame", clickPoint)
-centerDot.Size = UDim2.new(0, 8, 0, 8)
-centerDot.Position = UDim2.new(0.5, -4, 0.5, -4)
-centerDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-centerDot.BorderSizePixel = 0
-Instance.new("UICorner", centerDot).CornerRadius = UDim.new(1, 0)
 
 local dragLabel = Instance.new("TextLabel", clickPoint)
 dragLabel.Size = UDim2.new(1, 0, 1, 0)
 dragLabel.BackgroundTransparency = 1
 dragLabel.Text = "✛"
 dragLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-dragLabel.TextSize = 20
+dragLabel.TextSize = 22
 dragLabel.Font = Enum.Font.GothamBold
+dragLabel.ZIndex = 11
 
--- ========== DRAG LOGIC ==========
+-- ========== DRAG LOGIC dùng RunService ==========
 local dragging = false
-local dragStart = nil
-local startPos = nil
+local dragOffsetX = 0
+local dragOffsetY = 0
 
 clickPoint.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        dragStart = input.Position
-        startPos = clickPoint.Position
+        local mousePos = UserInputService:GetMouseLocation()
+        local absPos = clickPoint.AbsolutePosition
+        dragOffsetX = mousePos.X - absPos.X
+        dragOffsetY = mousePos.Y - absPos.Y
     end
 end)
 
 clickPoint.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
+RunService.RenderStepped:Connect(function()
+    if dragging then
+        local mousePos = UserInputService:GetMouseLocation()
         clickPoint.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
+            0, mousePos.X - dragOffsetX,
+            0, mousePos.Y - dragOffsetY
         )
     end
 end)
 
--- ========== AUTO CLICK LOGIC ==========
+-- ========== AUTO CLICK ==========
 local autoRunning = false
 local clickThread = nil
-
 local VIM = game:GetService("VirtualInputManager")
 
 local function getClickPos()
     local abs = clickPoint.AbsolutePosition
     local size = clickPoint.AbsoluteSize
-    return Vector2.new(
-        abs.X + size.X / 2,
-        abs.Y + size.Y / 2
-    )
+    return Vector2.new(abs.X + size.X / 2, abs.Y + size.Y / 2)
 end
 
 local function startAutoClick()
@@ -138,10 +131,12 @@ local function startAutoClick()
 
     clickThread = task.spawn(function()
         while autoRunning do
-            local pos = getClickPos()
-            VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
-            task.wait(0.05)
-            VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+            if not dragging then -- không click khi đang kéo
+                local pos = getClickPos()
+                VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+                task.wait(0.05)
+                VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+            end
             task.wait(0.05)
         end
     end)
@@ -160,14 +155,11 @@ local function stopAutoClick()
 end
 
 btnOn.MouseButton1Click:Connect(function()
-    if not autoRunning then
-        startAutoClick()
-    end
+    if not autoRunning then startAutoClick() end
 end)
 
 btnOff.MouseButton1Click:Connect(function()
     stopAutoClick()
 end)
 
-print("✅ Auto Click loaded!")
-print("Kéo hình tròn xanh đến vị trí muốn click, rồi bấm Bật!")
+print("✅ Auto Click loaded! Kéo hình tròn xanh rồi bấm Bật!")
