@@ -1,6 +1,5 @@
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local VirtualUser = game:GetService("VirtualUser")
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
@@ -56,10 +55,10 @@ end
 local btnOn  = makeBtn("▶ Bật", 5, 70, 80, Color3.fromRGB(0, 140, 0))
 local btnOff = makeBtn("⏹ Tắt", 93, 70, 80, Color3.fromRGB(160, 0, 0))
 
--- ========== CLICK POINT ==========
+-- ========== CLICK POINT (nhỏ hơn) ==========
 local clickPoint = Instance.new("Frame", gui)
-clickPoint.Size = UDim2.new(0, 60, 0, 60)
-clickPoint.Position = UDim2.new(0.5, -30, 0.5, -30)
+clickPoint.Size = UDim2.new(0, 40, 0, 40) -- ✅ nhỏ lại 40px
+clickPoint.Position = UDim2.new(0.5, -20, 0.5, -20)
 clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
 clickPoint.BorderSizePixel = 0
 clickPoint.Active = true
@@ -74,7 +73,7 @@ dragLabel.Size = UDim2.new(1, 0, 1, 0)
 dragLabel.BackgroundTransparency = 1
 dragLabel.Text = "✛"
 dragLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-dragLabel.TextSize = 24
+dragLabel.TextSize = 18
 dragLabel.Font = Enum.Font.GothamBold
 dragLabel.ZIndex = 11
 
@@ -124,6 +123,20 @@ local function getClickPos()
     return Vector2.new(abs.X + size.X / 2, abs.Y + size.Y / 2)
 end
 
+local function simulateClick(pos)
+    -- ✅ Dùng TouchTap để giả lập chạm màn hình mobile
+    local inputObject = InputObject.new()
+    pcall(function()
+        game:GetService("VirtualInputManager"):SendTouchEvent(
+            0, Enum.UserInputState.Begin, pos.X, pos.Y
+        )
+        task.wait(0.05)
+        game:GetService("VirtualInputManager"):SendTouchEvent(
+            0, Enum.UserInputState.End, pos.X, pos.Y
+        )
+    end)
+end
+
 local function startAutoClick()
     autoRunning = true
     statusLabel.Text = "✅ Đang click..."
@@ -135,10 +148,17 @@ local function startAutoClick()
         while autoRunning do
             if not dragging then
                 local pos = getClickPos()
-                -- Mobile dùng Button2Down/Up
-                VirtualUser:Button2Down(pos, workspace.CurrentCamera.CFrame)
+                pcall(function()
+                    game:GetService("VirtualInputManager"):SendTouchEvent(
+                        0, Enum.UserInputState.Begin, pos.X, pos.Y
+                    )
+                end)
                 task.wait(0.05)
-                VirtualUser:Button2Up(pos, workspace.CurrentCamera.CFrame)
+                pcall(function()
+                    game:GetService("VirtualInputManager"):SendTouchEvent(
+                        0, Enum.UserInputState.End, pos.X, pos.Y
+                    )
+                end)
             end
             task.wait(0.1)
         end
@@ -166,4 +186,3 @@ btnOff.MouseButton1Click:Connect(function()
 end)
 
 print("✅ Auto Click Mobile loaded!")
-print("Kéo hình tròn xanh → bấm Bật!")
