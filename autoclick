@@ -1,0 +1,173 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false
+gui.Name = "AutoClick"
+gui.IgnoreGuiInset = true
+
+-- ========== CONTROL PANEL ==========
+local panel = Instance.new("Frame", gui)
+panel.Size = UDim2.new(0, 180, 0, 110)
+panel.Position = UDim2.new(0, 10, 0.5, -55)
+panel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+panel.BorderSizePixel = 0
+panel.Active = true
+panel.Draggable = true
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", panel)
+stroke.Color = Color3.fromRGB(0, 180, 255)
+stroke.Thickness = 1.5
+
+local title = Instance.new("TextLabel", panel)
+title.Size = UDim2.new(1, 0, 0, 32)
+title.BackgroundColor3 = Color3.fromRGB(0, 80, 180)
+title.BorderSizePixel = 0
+title.Text = "🖱️ Auto Click"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 13
+title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+local statusLabel = Instance.new("TextLabel", panel)
+statusLabel.Size = UDim2.new(1, -10, 0, 20)
+statusLabel.Position = UDim2.new(0, 5, 0, 35)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "⏸ Đang dừng"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamBold
+
+local function makeBtn(text, x, y, w, color)
+    local btn = Instance.new("TextButton", panel)
+    btn.Size = UDim2.new(0, w, 0, 32)
+    btn.Position = UDim2.new(0, x, 0, y)
+    btn.BackgroundColor3 = color
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 11
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    return btn
+end
+
+local btnOn  = makeBtn("▶ Bật", 5, 70, 80, Color3.fromRGB(0, 140, 0))
+local btnOff = makeBtn("⏹ Tắt", 93, 70, 80, Color3.fromRGB(160, 0, 0))
+
+-- ========== CLICK POINT (hình tròn kéo được) ==========
+local clickPoint = Instance.new("Frame", gui)
+clickPoint.Size = UDim2.new(0, 40, 0, 40)
+clickPoint.Position = UDim2.new(0.5, -20, 0.5, -20)
+clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+clickPoint.BorderSizePixel = 0
+clickPoint.Active = true
+Instance.new("UICorner", clickPoint).CornerRadius = UDim.new(1, 0)
+local pointStroke = Instance.new("UIStroke", clickPoint)
+pointStroke.Color = Color3.fromRGB(255, 255, 255)
+pointStroke.Thickness = 2
+
+local centerDot = Instance.new("Frame", clickPoint)
+centerDot.Size = UDim2.new(0, 8, 0, 8)
+centerDot.Position = UDim2.new(0.5, -4, 0.5, -4)
+centerDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+centerDot.BorderSizePixel = 0
+Instance.new("UICorner", centerDot).CornerRadius = UDim.new(1, 0)
+
+local dragLabel = Instance.new("TextLabel", clickPoint)
+dragLabel.Size = UDim2.new(1, 0, 1, 0)
+dragLabel.BackgroundTransparency = 1
+dragLabel.Text = "✛"
+dragLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+dragLabel.TextSize = 20
+dragLabel.Font = Enum.Font.GothamBold
+
+-- ========== DRAG LOGIC ==========
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+clickPoint.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = clickPoint.Position
+    end
+end)
+
+clickPoint.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        clickPoint.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ========== AUTO CLICK LOGIC ==========
+local autoRunning = false
+local clickThread = nil
+
+local VIM = game:GetService("VirtualInputManager")
+
+local function getClickPos()
+    local abs = clickPoint.AbsolutePosition
+    local size = clickPoint.AbsoluteSize
+    return Vector2.new(
+        abs.X + size.X / 2,
+        abs.Y + size.Y / 2
+    )
+end
+
+local function startAutoClick()
+    autoRunning = true
+    statusLabel.Text = "✅ Đang click..."
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    clickPoint.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+    pointStroke.Color = Color3.fromRGB(255, 200, 0)
+
+    clickThread = task.spawn(function()
+        while autoRunning do
+            local pos = getClickPos()
+            VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+            task.wait(0.05)
+            VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+            task.wait(0.05)
+        end
+    end)
+end
+
+local function stopAutoClick()
+    autoRunning = false
+    if clickThread then
+        pcall(function() task.cancel(clickThread) end)
+        clickThread = nil
+    end
+    statusLabel.Text = "⏸ Đang dừng"
+    statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    pointStroke.Color = Color3.fromRGB(255, 255, 255)
+end
+
+btnOn.MouseButton1Click:Connect(function()
+    if not autoRunning then
+        startAutoClick()
+    end
+end)
+
+btnOff.MouseButton1Click:Connect(function()
+    stopAutoClick()
+end)
+
+print("✅ Auto Click loaded!")
+print("Kéo hình tròn xanh đến vị trí muốn click, rồi bấm Bật!")
