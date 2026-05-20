@@ -1,11 +1,11 @@
-local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
 gui.Name = "AutoClick"
-gui.IgnoreGuiInset = false -- ✅ đổi thành false
+gui.IgnoreGuiInset = false
 
 -- ========== CONTROL PANEL ==========
 local panel = Instance.new("Frame", gui)
@@ -58,8 +58,8 @@ local btnOff = makeBtn("⏹ Tắt", 93, 70, 80, Color3.fromRGB(160, 0, 0))
 
 -- ========== CLICK POINT ==========
 local clickPoint = Instance.new("Frame", gui)
-clickPoint.Size = UDim2.new(0, 44, 0, 44)
-clickPoint.Position = UDim2.new(0.5, -22, 0.5, -22)
+clickPoint.Size = UDim2.new(0, 60, 0, 60)
+clickPoint.Position = UDim2.new(0.5, -30, 0.5, -30)
 clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
 clickPoint.BorderSizePixel = 0
 clickPoint.Active = true
@@ -74,46 +74,49 @@ dragLabel.Size = UDim2.new(1, 0, 1, 0)
 dragLabel.BackgroundTransparency = 1
 dragLabel.Text = "✛"
 dragLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-dragLabel.TextSize = 22
+dragLabel.TextSize = 24
 dragLabel.Font = Enum.Font.GothamBold
 dragLabel.ZIndex = 11
 
--- ========== DRAG LOGIC ==========
+-- ========== DRAG LOGIC MOBILE ==========
 local dragging = false
-local lastMousePos = nil
+local dragInput = nil
+local lastPos = nil
 
 clickPoint.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
-        lastMousePos = UserInputService:GetMouseLocation()
+        dragInput = input
+        lastPos = Vector2.new(input.Position.X, input.Position.Y)
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input == dragInput then
         dragging = false
-        lastMousePos = nil
+        dragInput = nil
+        lastPos = nil
     end
 end)
 
-RunService.RenderStepped:Connect(function()
-    if dragging and lastMousePos then
-        local currentMouse = UserInputService:GetMouseLocation()
-        local delta = currentMouse - lastMousePos
-        lastMousePos = currentMouse
-
-        local currentPos = clickPoint.Position
-        clickPoint.Position = UDim2.new(
-            0, currentPos.X.Offset + delta.X,
-            0, currentPos.Y.Offset + delta.Y
-        )
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local currentPos = Vector2.new(input.Position.X, input.Position.Y)
+        if lastPos then
+            local delta = currentPos - lastPos
+            local cp = clickPoint.Position
+            clickPoint.Position = UDim2.new(
+                0, cp.X.Offset + delta.X,
+                0, cp.Y.Offset + delta.Y
+            )
+        end
+        lastPos = currentPos
     end
 end)
 
 -- ========== AUTO CLICK ==========
 local autoRunning = false
 local clickThread = nil
-local VIM = game:GetService("VirtualInputManager")
 
 local function getClickPos()
     local abs = clickPoint.AbsolutePosition
@@ -132,11 +135,12 @@ local function startAutoClick()
         while autoRunning do
             if not dragging then
                 local pos = getClickPos()
-                VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+                -- Mobile dùng Button2Down/Up
+                VirtualUser:Button2Down(pos, workspace.CurrentCamera.CFrame)
                 task.wait(0.05)
-                VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+                VirtualUser:Button2Up(pos, workspace.CurrentCamera.CFrame)
             end
-            task.wait(0.05)
+            task.wait(0.1)
         end
     end)
 end
@@ -161,4 +165,5 @@ btnOff.MouseButton1Click:Connect(function()
     stopAutoClick()
 end)
 
-print("✅ Auto Click loaded!")
+print("✅ Auto Click Mobile loaded!")
+print("Kéo hình tròn xanh → bấm Bật!")
