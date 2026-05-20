@@ -6,7 +6,6 @@ gui.ResetOnSpawn = false
 gui.Name = "AutoClick"
 gui.IgnoreGuiInset = false
 
--- ========== CONTROL PANEL ==========
 local panel = Instance.new("Frame", gui)
 panel.Size = UDim2.new(0, 180, 0, 110)
 panel.Position = UDim2.new(0, 10, 0.5, -55)
@@ -55,10 +54,10 @@ end
 local btnOn  = makeBtn("▶ Bật", 5, 70, 80, Color3.fromRGB(0, 140, 0))
 local btnOff = makeBtn("⏹ Tắt", 93, 70, 80, Color3.fromRGB(160, 0, 0))
 
--- ========== CLICK POINT (nhỏ hơn) ==========
+-- CLICK POINT
 local clickPoint = Instance.new("Frame", gui)
-clickPoint.Size = UDim2.new(0, 40, 0, 40) -- ✅ nhỏ lại 40px
-clickPoint.Position = UDim2.new(0.5, -20, 0.5, -20)
+clickPoint.Size = UDim2.new(0, 36, 0, 36)
+clickPoint.Position = UDim2.new(0.5, -18, 0.5, -18)
 clickPoint.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
 clickPoint.BorderSizePixel = 0
 clickPoint.Active = true
@@ -77,7 +76,7 @@ dragLabel.TextSize = 18
 dragLabel.Font = Enum.Font.GothamBold
 dragLabel.ZIndex = 11
 
--- ========== DRAG LOGIC MOBILE ==========
+-- DRAG
 local dragging = false
 local dragInput = nil
 local lastPos = nil
@@ -100,41 +99,25 @@ end)
 
 UserInputService.InputChanged:Connect(function(input)
     if dragging and input == dragInput then
-        local currentPos = Vector2.new(input.Position.X, input.Position.Y)
+        local cur = Vector2.new(input.Position.X, input.Position.Y)
         if lastPos then
-            local delta = currentPos - lastPos
+            local delta = cur - lastPos
             local cp = clickPoint.Position
-            clickPoint.Position = UDim2.new(
-                0, cp.X.Offset + delta.X,
-                0, cp.Y.Offset + delta.Y
-            )
+            clickPoint.Position = UDim2.new(0, cp.X.Offset + delta.X, 0, cp.Y.Offset + delta.Y)
         end
-        lastPos = currentPos
+        lastPos = cur
     end
 end)
 
--- ========== AUTO CLICK ==========
+-- AUTO CLICK
 local autoRunning = false
 local clickThread = nil
+local VIM = game:GetService("VirtualInputManager")
 
 local function getClickPos()
     local abs = clickPoint.AbsolutePosition
     local size = clickPoint.AbsoluteSize
-    return Vector2.new(abs.X + size.X / 2, abs.Y + size.Y / 2)
-end
-
-local function simulateClick(pos)
-    -- ✅ Dùng TouchTap để giả lập chạm màn hình mobile
-    local inputObject = InputObject.new()
-    pcall(function()
-        game:GetService("VirtualInputManager"):SendTouchEvent(
-            0, Enum.UserInputState.Begin, pos.X, pos.Y
-        )
-        task.wait(0.05)
-        game:GetService("VirtualInputManager"):SendTouchEvent(
-            0, Enum.UserInputState.End, pos.X, pos.Y
-        )
-    end)
+    return Vector2.new(abs.X + size.X/2, abs.Y + size.Y/2)
 end
 
 local function startAutoClick()
@@ -149,18 +132,15 @@ local function startAutoClick()
             if not dragging then
                 local pos = getClickPos()
                 pcall(function()
-                    game:GetService("VirtualInputManager"):SendTouchEvent(
-                        0, Enum.UserInputState.Begin, pos.X, pos.Y
-                    )
+                    VIM:SendTouchEvent(0, Enum.UserInputState.Begin, pos.X, pos.Y)
                 end)
-                task.wait(0.05)
+                task.wait(0.08)
                 pcall(function()
-                    game:GetService("VirtualInputManager"):SendTouchEvent(
-                        0, Enum.UserInputState.End, pos.X, pos.Y
-                    )
+                    VIM:SendTouchEvent(0, Enum.UserInputState.End, pos.X, pos.Y)
                 end)
+                task.wait(0.3) -- delay giữa mỗi lần click để game kịp xử lý
             end
-            task.wait(0.1)
+            task.wait(0.05)
         end
     end)
 end
@@ -185,4 +165,4 @@ btnOff.MouseButton1Click:Connect(function()
     stopAutoClick()
 end)
 
-print("✅ Auto Click Mobile loaded!")
+print("✅ Kéo hình tròn vào nút ROLL rồi bấm Bật!")
