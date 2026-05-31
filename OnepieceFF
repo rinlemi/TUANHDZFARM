@@ -1,0 +1,131 @@
+local Remote = game:GetService("ReplicatedStorage").Remotes.FishingEvent
+local VIM = game:GetService("VirtualInputManager")
+local player = game:GetService("Players").LocalPlayer
+local count = 0
+local running = true
+
+local CAST_X = 532
+local CAST_Y = 133
+
+local function clickPos(x, y)
+    VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.08)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local function findMyRope()
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    local closest = nil
+    local closestDist = math.huge
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v.Name == "Bobber" and v:IsA("BasePart") then
+            local dist = (v.Position - hrp.Position).Magnitude
+            if dist < closestDist then
+                closestDist = dist
+                closest = v.Parent
+            end
+        end
+    end
+    return closest
+end
+
+local function handleMinigame()
+    print("🎮 Minigame!")
+    local done = false
+    local conn = Remote.OnClientEvent:Connect(function(event)
+        if event == "FishingReeled" then done = true end
+    end)
+    for i = 1, 80 do
+        if done then break end
+        for _, v in pairs(player.PlayerGui:GetDescendants()) do
+            local ok, visible = pcall(function() return v.Visible end)
+            if ok and visible and v:IsA("TextButton") then
+                if v:GetFullName():find("FishingMinigame") then
+                    if v.BackgroundColor3.R > 0.8 then
+                        local abs = v.AbsolutePosition
+                        local size = v.AbsoluteSize
+                        clickPos(abs.X + size.X/2, abs.Y + size.Y/2 + 30)
+                        break
+                    end
+                end
+            end
+        end
+        task.wait(0.4)
+    end
+    conn:Disconnect()
+    print("✅ Minigame xong!")
+    count = count + 1
+    print("🐟 Cá:", count)
+    -- Thả cần lại
+    task.wait(1.5)
+    if running then
+        clickPos(CAST_X, CAST_Y)
+        print("🎣 Thả cần lại...")
+    end
+end
+
+local ropeConn = nil
+
+Remote.OnClientEvent:Connect(function(event)
+    if event == "FishingLaunched" then
+        print("🎣 Thả cần! Chờ Bobber...")
+        
+        -- Disconnect rope cũ nếu có
+        if ropeConn then
+            pcall(function() ropeConn:Disconnect() end)
+            ropeConn = nil
+        end
+
+        task.wait(1.5)
+
+        local rope = findMyRope()
+        if not rope then
+            print("❌ Không tìm thấy rope!")
+            return
+        end
+        print("✅ Rope found! Chờ cá cắn...")
+
+        ropeConn = rope.DescendantAdded:Connect(function(obj)
+            if obj.Name == "Sparkles" then
+                print("✨ Cá cắn! Reel!")
+                pcall(function() ropeConn:Disconnect() end)
+                ropeConn = nil
+                task.wait(0.1)
+                clickPos(CAST_X, CAST_Y)
+
+                -- Chờ xem có minigame không
+                local gotMinigame = false
+                local checkConn
+                checkConn = Remote.OnClientEvent:Connect(function(e)
+                    if e == "FishingMinigame" then
+                        gotMinigame = true
+                        checkConn:Disconnect()
+                    end
+                end)
+
+                task.wait(1.5)
+                checkConn:Disconnect()
+
+                if not gotMinigame then
+                    -- Cá thường không có minigame
+                    count = count + 1
+                    print("🐟 Cá thường:", count)
+                    task.wait(1.5)
+                    if running then
+                        clickPos(CAST_X, CAST_Y)
+                        print("🎣 Thả cần lại...")
+                    end
+                end
+            end
+        end)
+    end
+
+    if event == "FishingMinigame" then
+        task.spawn(handleMinigame)
+    end
+end)
+
+print("✅ Auto fish ready!")
+print("Click thả cần 1 lần đầu, script tự lo phần còn lại!")
+print("running = false để dừng")
