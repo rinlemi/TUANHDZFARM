@@ -1,0 +1,109 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Parent = game.CoreGui
+gui.ResetOnSpawn = false
+gui.Name = "FruitFinder"
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,300,0,400)
+frame.Position = UDim2.new(0,50,0.2,0)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "🍎 Fruit Finder"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+local refresh = Instance.new("TextButton", frame)
+refresh.Size = UDim2.new(1,0,0,30)
+refresh.Position = UDim2.new(0,0,0,30)
+refresh.Text = "🔄 Refresh Fruits"
+refresh.BackgroundColor3 = Color3.fromRGB(50,120,50)
+refresh.TextColor3 = Color3.new(1,1,1)
+
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1,0,1,-60)
+scroll.Position = UDim2.new(0,0,0,60)
+scroll.CanvasSize = UDim2.new()
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding = UDim.new(0,2)
+
+local function TweenTo(pos)
+	local char = player.Character
+	if not char then return end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local dist = (hrp.Position - pos).Magnitude
+
+	local tw = TweenService:Create(
+		hrp,
+		TweenInfo.new(dist/1000, Enum.EasingStyle.Linear),
+		{
+			CFrame = CFrame.new(pos + Vector3.new(0,5,0))
+		}
+	)
+
+	tw:Play()
+end
+
+local function Refresh()
+	for _,v in pairs(scroll:GetChildren()) do
+		if v:IsA("TextButton") then
+			v:Destroy()
+		end
+	end
+
+	local count = 0
+
+	for _,v in pairs(workspace:GetDescendants()) do
+		if v:IsA("Tool") and string.find(v.Name,"Fruit") then
+
+			local handle = v:FindFirstChild("Handle")
+
+			if handle then
+				count += 1
+
+				local btn = Instance.new("TextButton")
+				btn.Parent = scroll
+				btn.Size = UDim2.new(1,-5,0,30)
+
+				local dist = math.floor(
+					(player.Character.HumanoidRootPart.Position - handle.Position).Magnitude
+				)
+
+				btn.Text = v.Name.." ["..dist.."m]"
+				btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+				btn.TextColor3 = Color3.new(1,1,1)
+
+				btn.MouseButton1Click:Connect(function()
+					TweenTo(handle.Position)
+				end)
+			end
+		end
+	end
+
+	scroll.CanvasSize = UDim2.new(
+		0,
+		0,
+		0,
+		layout.AbsoluteContentSize.Y + 5
+	)
+
+	title.Text = "🍎 Fruit Finder ("..count..")"
+end
+
+refresh.MouseButton1Click:Connect(Refresh)
+
+Refresh()
