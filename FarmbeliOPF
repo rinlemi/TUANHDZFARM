@@ -1,3 +1,95 @@
+-- ===================== TUANHKAITUN UI =====================
+task.spawn(function()
+
+	local Players = game:GetService("Players")
+	local MarketplaceService = game:GetService("MarketplaceService")
+
+	local player = Players.LocalPlayer
+
+	pcall(function()
+		game.CoreGui.TuanhKaitunUI:Destroy()
+	end)
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "TuanhKaitunUI"
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+	gui.Parent = game.CoreGui
+
+	local bg = Instance.new("Frame")
+	bg.Parent = gui
+	bg.Size = UDim2.new(1,0,1,0)
+	bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	bg.BorderSizePixel = 0
+
+	local title = Instance.new("TextLabel")
+	title.Parent = bg
+	title.BackgroundTransparency = 1
+	title.AnchorPoint = Vector2.new(0.5,0)
+	title.Position = UDim2.new(0.5,0,0.28,0)
+	title.Size = UDim2.new(0,700,0,90)
+
+	title.Text = "TUANHKAITUN"
+	title.Font = Enum.Font.Arcade
+	title.TextScaled = true
+	title.TextColor3 = Color3.fromRGB(0,255,255)
+	title.TextStrokeTransparency = 0
+	title.TextStrokeColor3 = Color3.fromRGB(0,100,100)
+
+	local beriLabel = Instance.new("TextLabel")
+	beriLabel.Parent = bg
+	beriLabel.BackgroundTransparency = 1
+	beriLabel.AnchorPoint = Vector2.new(0.5,0)
+	beriLabel.Position = UDim2.new(0.5,0,0.40,0)
+	beriLabel.Size = UDim2.new(0,700,0,50)
+
+	beriLabel.Font = Enum.Font.GothamBold
+	beriLabel.TextScaled = true
+	beriLabel.TextColor3 = Color3.fromRGB(255,215,0)
+
+	local gameLabel = Instance.new("TextLabel")
+	gameLabel.Parent = bg
+	gameLabel.BackgroundTransparency = 1
+	gameLabel.AnchorPoint = Vector2.new(0.5,0)
+	gameLabel.Position = UDim2.new(0.5,0,0.47,0)
+	gameLabel.Size = UDim2.new(0,700,0,50)
+
+	gameLabel.Font = Enum.Font.GothamBold
+	gameLabel.TextScaled = true
+	gameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Parent = bg
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.AnchorPoint = Vector2.new(0.5,0)
+	statusLabel.Position = UDim2.new(0.5,0,0.54,0)
+	statusLabel.Size = UDim2.new(0,700,0,50)
+
+	statusLabel.Font = Enum.Font.GothamBlack
+	statusLabel.TextScaled = true
+	statusLabel.TextColor3 = Color3.fromRGB(0,255,100)
+	statusLabel.Text = "Status : Farm Beri"
+
+	local gameName = "Unknown"
+
+	pcall(function()
+		gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+	end)
+
+	gameLabel.Text = "Game : "..gameName
+
+	task.spawn(function()
+		while task.wait(1) do
+			pcall(function()
+				local beri = player.PlayerGui.Menu.Frame.MenuList.Stats.Frame.A.Beri.BeriAmount.Text
+				beriLabel.Text = "Beri : "..beri
+			end)
+		end
+	end)
+
+end)
+-- ===================== END UI =====================
+
 --// ONE PIECE FINAL - FARM SCRIPT
 --// Auto Click (method mới) + Auto Z + Auto Chest + Server Hop
 
