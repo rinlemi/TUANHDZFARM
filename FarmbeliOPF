@@ -179,7 +179,7 @@ local function hopServer()
 	end)
 	if not ok then warn("❌ Lỗi:", result) return end
 	for _, server in ipairs(result.data) do
-		if server.playing >= 9
+		if server.playing >= 6
 			and server.playing < server.maxPlayers
 			and server.id ~= game.JobId then
 			print("➡️ Hop:", server.id, "| Người:", server.playing)
