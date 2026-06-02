@@ -1,0 +1,111 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local foundFruit = false
+
+-- TP tới fruit
+local function TweenTo(pos)
+	local char = player.Character
+	if not char then return end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local dist = (hrp.Position - pos).Magnitude
+
+	local tw = TweenService:Create(
+		hrp,
+		TweenInfo.new(dist/1000, Enum.EasingStyle.Linear),
+		{
+			CFrame = CFrame.new(pos + Vector3.new(0,5,0))
+		}
+	)
+
+	tw:Play()
+end
+
+-- Check Clear Fruit
+local function checkClearFruit()
+	for _,v in pairs(workspace:GetDescendants()) do
+		if v:IsA("Tool") and v.Name == "Clear Fruit" then
+			local handle = v:FindFirstChild("Handle")
+
+			if handle then
+				foundFruit = true
+				print("🍎 Found Clear Fruit!")
+
+				TweenTo(handle.Position)
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+-- Server Hop
+local function hopServer()
+	print("🔍 Không có Clear Fruit -> Hop")
+
+	local gameId = game.PlaceId
+
+	local ok, result = pcall(function()
+		return HttpService:JSONDecode(
+			game:HttpGetAsync(
+				("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100")
+				:format(gameId)
+			)
+		)
+	end)
+
+	if not ok then
+		warn(result)
+		return
+	end
+
+	for _,server in ipairs(result.data) do
+		if server.playing < server.maxPlayers
+			and server.id ~= game.JobId then
+
+			TeleportService:TeleportToPlaceInstance(
+				gameId,
+				server.id,
+				player
+			)
+
+			break
+		end
+	end
+end
+
+-- Fruit spawn mới
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("Tool") and obj.Name == "Clear Fruit" then
+		task.wait(0.5)
+
+		local handle = obj:FindFirstChild("Handle")
+		if handle then
+			foundFruit = true
+
+			print("✨ Clear Fruit Spawned!")
+
+			TweenTo(handle.Position)
+		end
+	end
+end)
+
+-- Check lúc mới vào server
+task.spawn(function()
+	task.wait(3)
+
+	if not checkClearFruit() then
+		task.wait(10)
+
+		if not foundFruit then
+			hopServer()
+		end
+	end
+end)
