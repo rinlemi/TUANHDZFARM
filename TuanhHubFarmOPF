@@ -1144,7 +1144,7 @@ do
     local chestCountLbl = newLabel(infoCard, "📦  Chests collected: 0", 11, C.yellow)
     chestCountLbl.Size = UDim2.new(1,-10,0,18)
     chestCountLbl.Position = UDim2.new(0,0,0,22)
-    local chestDescLbl = newLabel(infoCard, "⬆ Bay +400 → hạ xuống chest → hop khi hết", 9, C.muted)
+    local chestDescLbl = newLabel(infoCard, "⬆ Bay +400 → hạ xuống chest → nhặt", 9, C.muted)
     chestDescLbl.Size = UDim2.new(1,-10,0,16)
     chestDescLbl.Position = UDim2.new(0,0,0,46)
     chestDescLbl.TextWrapped = true
@@ -1154,7 +1154,6 @@ do
     local chestCount = 0
     local _, getChestOn, setChestOn = makeToggle(page, "🎁  Auto Chest", 106, C.orange, false)
 
-    -- Hop server settings
     secLabel(page, "SERVER HOP", 142)
     local hopCard = Instance.new("Frame", page)
     hopCard.Size = UDim2.new(1,0,0,34)
@@ -1175,7 +1174,37 @@ do
         task.delay(2, function() hopBtn.Text = "🌐  Manual Server Hop" end)
     end)
 
+    -- Chest logic
+    local function getAllChests()
+        local chests = {}
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Model") and v.Name == "TreasureChest" then
+                table.insert(chests, v)
+            end
+        end
+        return chests
+    end
+
+    local function tweenToChest(chest)
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local ok, targetPos = pcall(function() return chest:GetPivot().Position end)
+        if not ok or not chest.Parent then return end
+        local startPos = hrp.Position
+
+        hrp.CFrame = CFrame.new(Vector3.new(startPos.X, startPos.Y + 400, startPos.Z))
+        task.wait(0.3)
+        if not chest.Parent then return end
+        hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+        task.wait(0.3)
+
+        chestCount += 1
+        chestCountLbl.Text = "📦  Chests collected: " .. chestCount
+        print("✅ Nhặt chest! Total: " .. chestCount)
+    end
+
     -- Watch toggle
+    local chestLoopThread = nil
     RunService.Heartbeat:Connect(function()
         local newState = getChestOn()
         if newState ~= autoChestOn then
@@ -1183,32 +1212,38 @@ do
             if autoChestOn then
                 chestStatusLbl.Text = "🎁  Status: RUNNING ✅"
                 chestStatusLbl.TextColor3 = C.green
-                chestThread = task.spawn(function()
+                chestLoopThread = task.spawn(function()
                     while autoChestOn do
-                        collectAllChests()
-                        task.wait(1)
+                        local chests = getAllChests()
+                        if #chests > 0 then
+                            for _, chest in ipairs(chests) do
+                                if not autoChestOn then break end
+                                if chest and chest.Parent then
+                                    tweenToChest(chest)
+                                end
+                            end
+                        end
+                        task.wait(2)
                     end
                 end)
-            
+                -- Detect chest mới spawn
+                workspace.DescendantAdded:Connect(function(obj)
+                    if obj:IsA("Model") and obj.Name == "TreasureChest" and autoChestOn then
+                        task.wait(0.3)
+                        tweenToChest(obj)
+                    end
+                end)
+            else
                 chestStatusLbl.Text = "🎁  Status: OFF"
                 chestStatusLbl.TextColor3 = C.muted
-                if chestThread then pcall(function() task.cancel(chestThread) end); chestThread = nil end
+                if chestLoopThread then
+                    pcall(function() task.cancel(chestLoopThread) end)
+                    chestLoopThread = nil
+                end
             end
         end
     end)
-
-    -- Count updater
-    local _origTween = tweenToChest
-    workspace.DescendantAdded:Connect(function(obj)
-        if obj:IsA("Model") and obj.Name == "TreasureChest" and autoChestOn then
-            task.wait(0.3)
-            tweenToChest(obj)
-            chestCount += 1
-            chestCountLbl.Text = "📦  Chests collected: " .. chestCount
-        end
-    end)
 end
-
 -- ===================== PAGE: AUTO FISHING =====================
 do
     local page = pageAutoFish
