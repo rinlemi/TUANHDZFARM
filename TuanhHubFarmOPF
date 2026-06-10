@@ -181,7 +181,7 @@ task.spawn(function()
 
         -- Smooth TP: lerp towards mob instead of snap
         if autoSpawnTP then
-            local targetCF = mobHrp.CFrame * CFrame.new(0, 0, 1,5)
+            local targetCF = mobHrp.CFrame * CFrame.new(0, 0, 1.5)
             hrp.CFrame = targetCF
         end
 
