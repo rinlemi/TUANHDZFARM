@@ -410,8 +410,7 @@ local function collectAllChests()
     end
     task.wait(1)
     local remaining = getAllChests()
-    if #remaining == 0 then
-    else
+    if #remaining > 0 then
         collectAllChests()
     end
 end
