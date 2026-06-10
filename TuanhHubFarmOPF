@@ -1,549 +1,934 @@
-local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
-local VIM = game:GetService("VirtualInputManager")
-local RunService = game:GetService("RunService")
-local player = Players.LocalPlayer
+-- ╔══════════════════════════════════════════════╗
+-- ║        TUANH FARM HUB  V.003                ║
+-- ║  Tab UI: Auto Farm | Method | Setting        ║
+-- ╚══════════════════════════════════════════════╝
+
+local Players      = game:GetService("Players")
+local VirtualUser  = game:GetService("VirtualUser")
+local VIM          = game:GetService("VirtualInputManager")
+local RunService   = game:GetService("RunService")
+local UIS          = game:GetService("UserInputService")
+local player       = Players.LocalPlayer
 
 -- ===================== STATE =====================
-local selectedMobs = {} -- multi-select table
-local autoAttack = false
-local autoSpawn = false
-local autoSpawnClick = false
+local selectedMobs     = {}
+local autoAttack       = false
+local autoSpawnTP      = false
+local autoSpawnClick   = false
+local smeltMethod      = false
+local equippedWeapon   = nil   -- tool Name string
 
--- ===================== MOB MANAGER =====================
+-- ===================== HELPERS =====================
+local function pressKey(key)
+    VIM:SendKeyEvent(true,  key, false, game)
+    task.wait(0.05)
+    VIM:SendKeyEvent(false, key, false, game)
+end
+
 local function getMobs()
-	local seen = {}
-	local list = {}
-	for _, mob in ipairs(workspace.Alive:GetChildren()) do
-		local hum = mob:FindFirstChild("Humanoid")
-		if hum and hum.Health > 0 and not seen[mob.Name] then
-			seen[mob.Name] = true
-			table.insert(list, mob.Name)
-		end
-	end
-	table.sort(list)
-	return list
+    local seen, list = {}, {}
+    for _, mob in ipairs(workspace:WaitForChild("Alive"):GetChildren()) do
+        local hum = mob:FindFirstChild("Humanoid")
+        if hum and hum.Health > 0 and not seen[mob.Name] then
+            seen[mob.Name] = true
+            table.insert(list, mob.Name)
+        end
+    end
+    table.sort(list)
+    return list
 end
 
 local function getAliveCount(name)
-	local count = 0
-	for _, mob in ipairs(workspace.Alive:GetChildren()) do
-		local hum = mob:FindFirstChild("Humanoid")
-		if mob.Name == name and hum and hum.Health > 0 then
-			count = count + 1
-		end
-	end
-	return count
+    local count = 0
+    for _, mob in ipairs(workspace.Alive:GetChildren()) do
+        local hum = mob:FindFirstChild("Humanoid")
+        if mob.Name == name and hum and hum.Health > 0 then count += 1 end
+    end
+    return count
 end
 
-local function getNearestMobFromList(nameList)
-	local char = player.Character
-	if not char then return nil, nil end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil, nil end
-	local nearest, dist = nil, math.huge
-	for _, mob in ipairs(workspace.Alive:GetChildren()) do
-		local hum = mob:FindFirstChild("Humanoid")
-		local mobHrp = mob:FindFirstChild("HumanoidRootPart")
-		if nameList[mob.Name] and hum and hum.Health > 0 and mobHrp then
-			local d = (hrp.Position - mobHrp.Position).Magnitude
-			if d < dist then
-				dist = d
-				nearest = mob
-			end
-		end
-	end
-	return nearest, dist
+local function getNearestMob()
+    local char = player.Character
+    if not char then return nil, nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil, nil end
+    local nearest, dist = nil, math.huge
+    for _, mob in ipairs(workspace.Alive:GetChildren()) do
+        local hum    = mob:FindFirstChild("Humanoid")
+        local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+        if selectedMobs[mob.Name] and hum and hum.Health > 0 and mobHrp then
+            local d = (hrp.Position - mobHrp.Position).Magnitude
+            if d < dist then dist = d; nearest = mob end
+        end
+    end
+    return nearest, dist
 end
+
+local function countSelected()
+    local c = 0
+    for _ in pairs(selectedMobs) do c += 1 end
+    return c
+end
+
+-- ===================== WEAPON EQUIP =====================
+local function getWeapons()
+    local list = {}
+    local bp = player:FindFirstChild("Backpack")
+    if bp then
+        for _, tool in ipairs(bp:GetChildren()) do
+            if tool:IsA("Tool") then table.insert(list, tool.Name) end
+        end
+    end
+    local char = player.Character
+    if char then
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") then table.insert(list, tool.Name) end
+        end
+    end
+    table.sort(list)
+    return list
+end
+
+local function equipWeapon(name)
+    if not name then return end
+    local char = player.Character
+    if not char then return end
+    -- Search backpack first
+    local bp = player:FindFirstChild("Backpack")
+    if bp then
+        local tool = bp:FindFirstChild(name)
+        if tool then
+            -- Equip by humanoid
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then hum:EquipTool(tool) end
+            return
+        end
+    end
+end
+
+-- Auto re-equip on respawn
+player.CharacterAdded:Connect(function(char)
+    task.wait(1.5)
+    if equippedWeapon then
+        equipWeapon(equippedWeapon)
+    end
+end)
+
+-- ===================== SMELT METHOD =====================
+local smeltLoop = 0
+local function startSmeltMethod(char)
+    smeltLoop += 1
+    local myLoop = smeltLoop
+    local hum = char:WaitForChild("Humanoid")
+    task.wait(2)
+    if myLoop ~= smeltLoop then return end
+    pressKey(Enum.KeyCode.Z)
+    task.wait(0.2)
+    pressKey(Enum.KeyCode.X)
+    task.spawn(function()
+        while hum.Health > 0 and myLoop == smeltLoop and smeltMethod do
+            pressKey(Enum.KeyCode.C)
+            task.wait(0.1)
+        end
+    end)
+end
+
+player.CharacterAdded:Connect(function(char)
+    if smeltMethod then
+        task.spawn(function() startSmeltMethod(char) end)
+    end
+end)
+
+-- ===================== AUTO SPAWN CLICK =====================
+local function clickGuiBtn(guiObj)
+    local pos  = guiObj.AbsolutePosition
+    local size = guiObj.AbsoluteSize
+    local x = pos.X + size.X / 2
+    local y = pos.Y + size.Y / 2 + 50
+    VIM:SendMouseButtonEvent(x, y, 0, true,  game, 0)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+task.spawn(function()
+    while task.wait(0.2) do
+        if not autoSpawnClick then continue end
+        for _, v in ipairs(player.PlayerGui:GetDescendants()) do
+            if v:IsA("TextButton") and v.Visible then
+                local txt = string.lower(v.Text)
+                if txt == "spawn" or v.Text == "เลือก" then
+                    clickGuiBtn(v)
+                    task.wait(2)
+                end
+            end
+        end
+    end
+end)
+
+-- ===================== AUTO ATTACK + SPAWN TP =====================
+task.spawn(function()
+    while task.wait(0.08) do  -- faster tick = mượt hơn
+        if countSelected() == 0 or not autoAttack then continue end
+        local char = player.Character
+        if not char then continue end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+
+        local nearest, dist = getNearestMob()
+        if not nearest then continue end
+        local mobHrp = nearest:FindFirstChild("HumanoidRootPart")
+        if not mobHrp then continue end
+
+        -- Smooth TP: lerp towards mob instead of snap
+        if autoSpawnTP then
+            local targetCF = mobHrp.CFrame * CFrame.new(0, 0, 3.5)
+            hrp.CFrame = targetCF
+        end
+
+        -- Click attack
+        VirtualUser:Button1Down(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
+        task.wait(0.05)
+        VirtualUser:Button1Up(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
+    end
+end)
 
 -- ===================== GUI BUILD =====================
--- Remove old instance if reloading
-local oldGui = game:GetService("CoreGui"):FindFirstChild("TuanhFarmHub_V2")
+local oldGui = game:GetService("CoreGui"):FindFirstChild("TuanhFarmHub_V3")
 if oldGui then oldGui:Destroy() end
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.ResetOnSpawn = false
-gui.Name = "TuanhFarmHub_V2"
+gui.Name = "TuanhFarmHub_V3"
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- ── THEME ──────────────────────────────────────────────
+-- ── COLORS ──────────────────────────────────────────────
 local C = {
-	bg        = Color3.fromRGB(10,  11,  20),
-	panel     = Color3.fromRGB(16,  17,  32),
-	card      = Color3.fromRGB(22,  23,  42),
-	accent    = Color3.fromRGB(120,  60, 255),
-	accentHi  = Color3.fromRGB(160, 100, 255),
-	green     = Color3.fromRGB( 80, 255, 140),
-	cyan      = Color3.fromRGB(  0, 200, 255),
-	yellow    = Color3.fromRGB(255, 200,  60),
-	red       = Color3.fromRGB(255,  80,  80),
-	white     = Color3.fromRGB(230, 230, 245),
-	muted     = Color3.fromRGB(110, 110, 140),
-	selectedBg= Color3.fromRGB( 60,  20, 160),
+    bg       = Color3.fromRGB(12,  12,  22),
+    panel    = Color3.fromRGB(18,  18,  34),
+    card     = Color3.fromRGB(26,  26,  46),
+    sidebar  = Color3.fromRGB(15,  15,  28),
+    accent   = Color3.fromRGB(120,  55, 255),
+    accentHi = Color3.fromRGB(160, 100, 255),
+    green    = Color3.fromRGB( 80, 255, 140),
+    cyan     = Color3.fromRGB(  0, 200, 255),
+    yellow   = Color3.fromRGB(255, 200,  60),
+    red      = Color3.fromRGB(255,  80,  80),
+    white    = Color3.fromRGB(230, 230, 245),
+    muted    = Color3.fromRGB(100, 100, 130),
+    selBg    = Color3.fromRGB( 50,  18, 140),
+    border   = Color3.fromRGB( 40,  35,  80),
 }
 
--- ── HELPERS ────────────────────────────────────────────
 local function corner(r, obj)
-	local c = Instance.new("UICorner", obj)
-	c.CornerRadius = UDim.new(0, r)
-	return c
+    local c = Instance.new("UICorner", obj); c.CornerRadius = UDim.new(0, r); return c
 end
 local function stroke(obj, color, thick)
-	local s = Instance.new("UIStroke", obj)
-	s.Color = color or C.accent
-	s.Thickness = thick or 1
-	return s
+    local s = Instance.new("UIStroke", obj)
+    s.Color = color or C.border; s.Thickness = thick or 1; return s
 end
-local function label(parent, text, size, color, font)
-	local l = Instance.new("TextLabel", parent)
-	l.BackgroundTransparency = 1
-	l.Text = text
-	l.TextColor3 = color or C.white
-	l.TextSize = size or 12
-	l.Font = font or Enum.Font.GothamBold
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	return l
+local function newLabel(parent, text, size, color, xAlign)
+    local l = Instance.new("TextLabel", parent)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = color or C.white
+    l.TextSize = size or 12
+    l.Font = Enum.Font.GothamBold
+    l.TextXAlignment = xAlign or Enum.TextXAlignment.Left
+    return l
 end
 
--- ── MAIN FRAME ─────────────────────────────────────────
+-- ── MAIN FRAME (wide, square-ish) ───────────────────────
+-- Layout: 280 wide sidebar | 380 wide content = 660 x 420
+local TOTAL_W = 660
+local TOTAL_H = 420
+local SIDEBAR_W = 180
+
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 260, 0, 470)
-main.Position = UDim2.new(0, 14, 0.08, 0)
+main.Size = UDim2.new(0, TOTAL_W, 0, TOTAL_H)
+main.Position = UDim2.new(0.5, -TOTAL_W/2, 0.5, -TOTAL_H/2)
 main.BackgroundColor3 = C.bg
 main.BorderSizePixel = 0
 main.Active = true
 main.Draggable = true
-corner(14, main)
+corner(10, main)
 stroke(main, C.accent, 1.5)
 
--- Gradient overlay on main
-local grad = Instance.new("UIGradient", main)
-grad.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0,   Color3.fromRGB(22,10,55)),
-	ColorSequenceKeypoint.new(1,   Color3.fromRGB(10,10,20)),
-})
-grad.Rotation = 135
-
--- ── TITLE BAR ──────────────────────────────────────────
+-- ── TITLE BAR ───────────────────────────────────────────
 local titleBar = Instance.new("Frame", main)
-titleBar.Size = UDim2.new(1, 0, 0, 38)
+titleBar.Size = UDim2.new(1, 0, 0, 34)
 titleBar.BackgroundColor3 = C.accent
 titleBar.BorderSizePixel = 0
-corner(14, titleBar)
+corner(10, titleBar)
 
--- Flatten bottom corners of title bar
-local titleBarBottom = Instance.new("Frame", titleBar)
-titleBarBottom.Size = UDim2.new(1, 0, 0.5, 0)
-titleBarBottom.Position = UDim2.new(0, 0, 0.5, 0)
-titleBarBottom.BackgroundColor3 = C.accent
-titleBarBottom.BorderSizePixel = 0
+-- Flatten bottom of title bar
+local tbFlat = Instance.new("Frame", titleBar)
+tbFlat.Size = UDim2.new(1, 0, 0.5, 0)
+tbFlat.Position = UDim2.new(0, 0, 0.5, 0)
+tbFlat.BackgroundColor3 = C.accent
+tbFlat.BorderSizePixel = 0
 
-local titleGrad = Instance.new("UIGradient", titleBar)
-titleGrad.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(140, 60, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(80,  20, 200)),
+local tGrad = Instance.new("UIGradient", titleBar)
+tGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(145, 65, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(75,  20, 200)),
 })
-titleGrad.Rotation = 90
+tGrad.Rotation = 90
 
-local titleTxt = Instance.new("TextLabel", titleBar)
-titleTxt.Size = UDim2.new(1, -10, 1, 0)
-titleTxt.Position = UDim2.new(0, 10, 0, 0)
-titleTxt.BackgroundTransparency = 1
-titleTxt.Text = "⚔  TUANH FARM HUB"
-titleTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleTxt.TextSize = 14
-titleTxt.Font = Enum.Font.GothamBold
-titleTxt.TextXAlignment = Enum.TextXAlignment.Left
+local titleTxt = newLabel(titleBar, "⚔  TUANH FARM HUB", 13, Color3.fromRGB(255,255,255))
+titleTxt.Size = UDim2.new(1, -90, 1, 0)
+titleTxt.Position = UDim2.new(0, 12, 0, 0)
 
--- Subtitle tag
-local subTag = Instance.new("Frame", titleBar)
-subTag.Size = UDim2.new(0, 70, 0, 16)
-subTag.Position = UDim2.new(1, -78, 0.5, -8)
-subTag.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-subTag.BorderSizePixel = 0
-corner(4, subTag)
-local subTxt = Instance.new("TextLabel", subTag)
-subTxt.Size = UDim2.new(1,0,1,0)
-subTxt.BackgroundTransparency = 1
-subTxt.Text = "FREEMIUM"
-subTxt.TextColor3 = Color3.fromRGB(20,20,20)
-subTxt.TextSize = 9
-subTxt.Font = Enum.Font.GothamBold
+local freeTag = Instance.new("Frame", titleBar)
+freeTag.Size = UDim2.new(0, 72, 0, 18)
+freeTag.Position = UDim2.new(1, -130, 0.5, -9)
+freeTag.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+freeTag.BorderSizePixel = 0
+corner(4, freeTag)
+local freeTxt = newLabel(freeTag, "FREEMIUM", 9, Color3.fromRGB(20,20,20), Enum.TextXAlignment.Center)
+freeTxt.Size = UDim2.new(1,0,1,0)
 
--- ── SECTION LABEL helper ───────────────────────────────
-local function sectionLabel(parent, text, yPos)
-	local l = label(parent, text, 10, C.muted)
-	l.Size = UDim2.new(1, -10, 0, 16)
-	l.Position = UDim2.new(0, 10, 0, yPos)
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	return l
+-- Close button
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0, 26, 0, 20)
+closeBtn.Position = UDim2.new(1, -32, 0.5, -10)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.TextSize = 11
+closeBtn.Font = Enum.Font.GothamBold
+corner(5, closeBtn)
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+-- ── SIDEBAR ─────────────────────────────────────────────
+local sidebar = Instance.new("Frame", main)
+sidebar.Size = UDim2.new(0, SIDEBAR_W, 1, -34)
+sidebar.Position = UDim2.new(0, 0, 0, 34)
+sidebar.BackgroundColor3 = C.sidebar
+sidebar.BorderSizePixel = 0
+
+-- Divider line between sidebar and content
+local divider = Instance.new("Frame", main)
+divider.Size = UDim2.new(0, 1, 1, -34)
+divider.Position = UDim2.new(0, SIDEBAR_W, 0, 34)
+divider.BackgroundColor3 = C.border
+divider.BorderSizePixel = 0
+
+-- ── CONTENT AREA ────────────────────────────────────────
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(0, TOTAL_W - SIDEBAR_W - 1, 1, -34)
+content.Position = UDim2.new(0, SIDEBAR_W + 1, 0, 34)
+content.BackgroundColor3 = C.panel
+content.BorderSizePixel = 0
+corner(10, content)  -- only right corners, hacky flatten left
+local contentFlat = Instance.new("Frame", content)
+contentFlat.Size = UDim2.new(0, 10, 1, 0)
+contentFlat.BackgroundColor3 = C.panel
+contentFlat.BorderSizePixel = 0
+
+-- ===================== TAB SYSTEM =====================
+local tabs = {}       -- name → {btn, page}
+local activeTab = nil
+
+local tabLayout = Instance.new("UIListLayout", sidebar)
+tabLayout.Padding = UDim.new(0, 4)
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local tabPad = Instance.new("UIPadding", sidebar)
+tabPad.PaddingTop   = UDim.new(0, 12)
+tabPad.PaddingLeft  = UDim.new(0, 10)
+tabPad.PaddingRight = UDim.new(0, 10)
+
+local function newPage()
+    local page = Instance.new("Frame", content)
+    page.Size = UDim2.new(1, -12, 1, -10)
+    page.Position = UDim2.new(0, 6, 0, 5)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    return page
 end
 
--- ── SEARCH + REFRESH ROW ───────────────────────────────
-sectionLabel(main, "MOB LIST", 44)
+local function makeTab(name, icon, order)
+    local page = newPage()
 
-local searchBox = Instance.new("TextBox", main)
-searchBox.Size = UDim2.new(1, -70, 0, 28)
-searchBox.Position = UDim2.new(0, 8, 0, 62)
-searchBox.BackgroundColor3 = C.card
-searchBox.BorderSizePixel = 0
-searchBox.PlaceholderText = "🔍 Search..."
-searchBox.Text = ""
-searchBox.TextColor3 = C.white
-searchBox.PlaceholderColor3 = C.muted
-searchBox.TextSize = 12
-searchBox.Font = Enum.Font.Gotham
-searchBox.ClearTextOnFocus = false
-corner(7, searchBox)
-stroke(searchBox, C.accent, 1)
-local spad = Instance.new("UIPadding", searchBox)
-spad.PaddingLeft = UDim.new(0,8)
+    local btn = Instance.new("TextButton", sidebar)
+    btn.Size = UDim2.new(1, 0, 0, 36)
+    btn.BackgroundColor3 = C.card
+    btn.BorderSizePixel = 0
+    btn.Text = icon .. "  " .. name
+    btn.TextColor3 = C.muted
+    btn.TextSize = 12
+    btn.Font = Enum.Font.GothamBold
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.LayoutOrder = order
+    corner(7, btn)
+    local p = Instance.new("UIPadding", btn)
+    p.PaddingLeft = UDim.new(0, 10)
 
-local refreshBtn = Instance.new("TextButton", main)
-refreshBtn.Size = UDim2.new(0, 54, 0, 28)
-refreshBtn.Position = UDim2.new(1, -62, 0, 62)
-refreshBtn.BackgroundColor3 = C.accent
-refreshBtn.BorderSizePixel = 0
-refreshBtn.Text = "🔄 Reload"
-refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
-refreshBtn.TextSize = 10
-refreshBtn.Font = Enum.Font.GothamBold
-corner(7, refreshBtn)
+    local activeBar = Instance.new("Frame", btn)
+    activeBar.Size = UDim2.new(0, 3, 0.7, 0)
+    activeBar.Position = UDim2.new(0, -10, 0.15, 0)
+    activeBar.BackgroundColor3 = C.accent
+    activeBar.BorderSizePixel = 0
+    activeBar.Visible = false
+    corner(2, activeBar)
 
--- ── SCROLL LIST ────────────────────────────────────────
-local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, -16, 0, 140)
-scroll.Position = UDim2.new(0, 8, 0, 96)
-scroll.BackgroundColor3 = C.panel
-scroll.BorderSizePixel = 0
-scroll.ScrollBarThickness = 3
-scroll.ScrollBarImageColor3 = C.accent
-scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-corner(8, scroll)
-stroke(scroll, Color3.fromRGB(40,30,80), 1)
+    tabs[name] = {btn = btn, page = page, bar = activeBar}
 
-local listLayout = Instance.new("UIListLayout", scroll)
-listLayout.Padding = UDim.new(0, 3)
-local listPad = Instance.new("UIPadding", scroll)
-listPad.PaddingTop  = UDim.new(0, 5)
-listPad.PaddingLeft = UDim.new(0, 5)
-listPad.PaddingRight= UDim.new(0, 5)
-listPad.PaddingBottom = UDim.new(0, 5)
+    btn.MouseButton1Click:Connect(function()
+        -- deactivate all
+        for _, t in pairs(tabs) do
+            t.page.Visible = false
+            t.btn.BackgroundColor3 = C.card
+            t.btn.TextColor3 = C.muted
+            t.bar.Visible = false
+        end
+        -- activate this
+        page.Visible = true
+        btn.BackgroundColor3 = C.selBg
+        btn.TextColor3 = C.white
+        activeBar.Visible = true
+        activeTab = name
+    end)
 
--- ── INFO PANEL ─────────────────────────────────────────
-sectionLabel(main, "TARGET INFO", 242)
-
-local infoFrame = Instance.new("Frame", main)
-infoFrame.Size = UDim2.new(1, -16, 0, 76)
-infoFrame.Position = UDim2.new(0, 8, 0, 260)
-infoFrame.BackgroundColor3 = C.panel
-infoFrame.BorderSizePixel = 0
-corner(8, infoFrame)
-stroke(infoFrame, Color3.fromRGB(40,30,80), 1)
-
-local infoPad = Instance.new("UIPadding", infoFrame)
-infoPad.PaddingLeft  = UDim.new(0, 8)
-infoPad.PaddingTop   = UDim.new(0, 6)
-
-local selectedLabel = label(infoFrame, "🎯  Selected: --", 11, C.cyan)
-selectedLabel.Size = UDim2.new(1, -8, 0, 18)
-
-local aliveLabel = label(infoFrame, "📊  Alive: --", 11, C.yellow)
-aliveLabel.Size = UDim2.new(0.5, -4, 0, 18)
-aliveLabel.Position = UDim2.new(0, 0, 0, 24)
-
-local distLabel = label(infoFrame, "📏  Dist: --", 11, C.green)
-distLabel.Size = UDim2.new(0.5, -4, 0, 18)
-distLabel.Position = UDim2.new(0.5, 0, 0, 24)
-
-local hpLabel = label(infoFrame, "❤️  HP: --", 11, C.red)
-hpLabel.Size = UDim2.new(1, -8, 0, 18)
-hpLabel.Position = UDim2.new(0, 0, 0, 50)
-
--- ── TOGGLE FACTORY ─────────────────────────────────────
-sectionLabel(main, "CONTROLS", 342)
-
-local function makeToggle(parent, text, yPos, onColor, offColor)
-	offColor = offColor or C.card
-	local frame = Instance.new("Frame", parent)
-	frame.Size = UDim2.new(1, -16, 0, 30)
-	frame.Position = UDim2.new(0, 8, 0, yPos)
-	frame.BackgroundColor3 = offColor
-	frame.BorderSizePixel = 0
-	corner(7, frame)
-	stroke(frame, Color3.fromRGB(50,40,90), 1)
-
-	-- Pill indicator
-	local pill = Instance.new("Frame", frame)
-	pill.Size = UDim2.new(0, 28, 0, 14)
-	pill.Position = UDim2.new(1, -36, 0.5, -7)
-	pill.BackgroundColor3 = C.muted
-	pill.BorderSizePixel = 0
-	corner(7, pill)
-	local pillDot = Instance.new("Frame", pill)
-	pillDot.Size = UDim2.new(0, 12, 0, 12)
-	pillDot.Position = UDim2.new(0, 1, 0, 1)
-	pillDot.BackgroundColor3 = Color3.fromRGB(180,180,200)
-	pillDot.BorderSizePixel = 0
-	corner(6, pillDot)
-
-	local btn = Instance.new("TextButton", frame)
-	btn.Size = UDim2.new(1, -44, 1, 0)
-	btn.BackgroundTransparency = 1
-	btn.Text = text
-	btn.TextColor3 = C.muted
-	btn.TextSize = 12
-	btn.Font = Enum.Font.GothamBold
-	btn.TextXAlignment = Enum.TextXAlignment.Left
-	local p = Instance.new("UIPadding", btn)
-	p.PaddingLeft = UDim.new(0, 10)
-
-	local on = false
-	local function setState(v)
-		on = v
-		if on then
-			frame.BackgroundColor3 = Color3.fromRGB(30, 15, 70)
-			pill.BackgroundColor3 = onColor or C.accent
-			pillDot.Position = UDim2.new(0, 15, 0, 1)
-			pillDot.BackgroundColor3 = Color3.fromRGB(255,255,255)
-			btn.TextColor3 = onColor or C.accent
-		else
-			frame.BackgroundColor3 = offColor
-			pill.BackgroundColor3 = C.muted
-			pillDot.Position = UDim2.new(0, 1, 0, 1)
-			pillDot.BackgroundColor3 = Color3.fromRGB(180,180,200)
-			btn.TextColor3 = C.muted
-		end
-	end
-
-	btn.MouseButton1Click:Connect(function()
-		setState(not on)
-	end)
-
-	return btn, function() return on end, setState
+    return page
 end
 
-local _aaBtn,  getAutoAttack,   setAutoAttack   = makeToggle(main, "⚔  Auto Attack",    358, C.green)
-local _asBtn,  getAutoSpawn,    setAutoSpawn     = makeToggle(main, "✈  Auto Spawn TP",  394, C.cyan)
-local _ascBtn, getAutoSpawnClick, setAutoSpawnClick = makeToggle(main, "🖱  Auto Spawn Click", 430, C.yellow)
+-- ===================== PAGES =====================
+local pageAutoFarm  = makeTab("Auto Farm",   "⚔",  1)
+local pageMethod    = makeTab("Method Farm", "✈",  2)
+local pageSetting   = makeTab("Setting",     "⚙",  3)
 
--- ── STATUS + VERSION ───────────────────────────────────
-local statusLabel = Instance.new("TextLabel", main)
-statusLabel.Size = UDim2.new(1, -50, 0, 20)
-statusLabel.Position = UDim2.new(0, 8, 1, -26)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "● Idle"
-statusLabel.TextColor3 = C.muted
-statusLabel.TextSize = 11
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+-- Version label in sidebar
+local verLbl = newLabel(sidebar, "V.003", 9, C.muted, Enum.TextXAlignment.Center)
+verLbl.Size = UDim2.new(1, 0, 0, 16)
+verLbl.Position = UDim2.new(0, 0, 1, -20)
 
-local versionLabel = Instance.new("TextLabel", main)
-versionLabel.Size = UDim2.new(0, 44, 0, 20)
-versionLabel.Position = UDim2.new(1, -50, 1, -26)
-versionLabel.BackgroundTransparency = 1
-versionLabel.Text = "V.001"
-versionLabel.TextColor3 = C.muted
-versionLabel.TextSize = 10
-versionLabel.Font = Enum.Font.Gotham
-versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+-- ===================== PAGE: AUTO FARM =====================
+do
+    local page = pageAutoFarm
 
--- ===================== MOB LIST LOGIC =====================
-local allMobs = {}
-local mobButtons = {} -- name → button frame
+    -- Section helper
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted)
+        l.Size = UDim2.new(1, 0, 0, 14)
+        l.Position = UDim2.new(0, 2, 0, y)
+    end
 
-local function getMobCount()
-	local c = 0
-	for _ in pairs(selectedMobs) do c = c + 1 end
-	return c
+    -- Search + Reload
+    secLabel("MOB LIST", 0)
+    local searchBox = Instance.new("TextBox", page)
+    searchBox.Size = UDim2.new(0.62, 0, 0, 26)
+    searchBox.Position = UDim2.new(0, 0, 0, 16)
+    searchBox.BackgroundColor3 = C.card
+    searchBox.BorderSizePixel = 0
+    searchBox.PlaceholderText = "🔍 Search..."
+    searchBox.Text = ""
+    searchBox.TextColor3 = C.white
+    searchBox.PlaceholderColor3 = C.muted
+    searchBox.TextSize = 11
+    searchBox.Font = Enum.Font.Gotham
+    searchBox.ClearTextOnFocus = false
+    corner(6, searchBox)
+    stroke(searchBox, C.accent, 1)
+    local sp = Instance.new("UIPadding", searchBox); sp.PaddingLeft = UDim.new(0,7)
+
+    local reloadBtn = Instance.new("TextButton", page)
+    reloadBtn.Size = UDim2.new(0.35, 0, 0, 26)
+    reloadBtn.Position = UDim2.new(0.65, 0, 0, 16)
+    reloadBtn.BackgroundColor3 = C.accent
+    reloadBtn.BorderSizePixel = 0
+    reloadBtn.Text = "🔄 Reload"
+    reloadBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    reloadBtn.TextSize = 10
+    reloadBtn.Font = Enum.Font.GothamBold
+    corner(6, reloadBtn)
+
+    -- Mob scroll
+    local scroll = Instance.new("ScrollingFrame", page)
+    scroll.Size = UDim2.new(1, 0, 0, 120)
+    scroll.Position = UDim2.new(0, 0, 0, 46)
+    scroll.BackgroundColor3 = C.card
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 3
+    scroll.ScrollBarImageColor3 = C.accent
+    scroll.CanvasSize = UDim2.new(0,0,0,0)
+    corner(7, scroll)
+    stroke(scroll, C.border, 1)
+    local ll = Instance.new("UIListLayout", scroll); ll.Padding = UDim.new(0,2)
+    local lp = Instance.new("UIPadding", scroll)
+    lp.PaddingTop=UDim.new(0,4); lp.PaddingLeft=UDim.new(0,4)
+    lp.PaddingRight=UDim.new(0,4); lp.PaddingBottom=UDim.new(0,4)
+
+    -- Target info
+    secLabel("TARGET INFO", 172)
+    local infoFrame = Instance.new("Frame", page)
+    infoFrame.Size = UDim2.new(1, 0, 0, 68)
+    infoFrame.Position = UDim2.new(0, 0, 0, 188)
+    infoFrame.BackgroundColor3 = C.card
+    infoFrame.BorderSizePixel = 0
+    corner(7, infoFrame)
+    stroke(infoFrame, C.border, 1)
+    local ip = Instance.new("UIPadding", infoFrame); ip.PaddingLeft=UDim.new(0,8); ip.PaddingTop=UDim.new(0,6)
+
+    local selLabel  = newLabel(infoFrame, "🎯  Selected: --", 11, C.cyan); selLabel.Size = UDim2.new(1,-8,0,18)
+    local alvLabel  = newLabel(infoFrame, "📊  Alive: --",    11, C.yellow); alvLabel.Size=UDim2.new(0.5,0,0,18); alvLabel.Position=UDim2.new(0,0,0,22)
+    local dstLabel  = newLabel(infoFrame, "📏  Dist: --",     11, C.green);  dstLabel.Size=UDim2.new(0.5,0,0,18); dstLabel.Position=UDim2.new(0.5,0,0,22)
+    local hpLabel   = newLabel(infoFrame, "❤️  HP: --",       11, C.red);    hpLabel.Size=UDim2.new(1,-8,0,18);   hpLabel.Position=UDim2.new(0,0,0,46)
+
+    -- Controls toggles
+    secLabel("CONTROLS", 262)
+
+    local function makeToggle(text, yPos, onColor)
+        local frame = Instance.new("Frame", page)
+        frame.Size = UDim2.new(1, 0, 0, 28)
+        frame.Position = UDim2.new(0, 0, 0, yPos)
+        frame.BackgroundColor3 = C.card
+        frame.BorderSizePixel = 0
+        corner(6, frame)
+        stroke(frame, C.border, 1)
+
+        local pill = Instance.new("Frame", frame)
+        pill.Size = UDim2.new(0, 28, 0, 14)
+        pill.Position = UDim2.new(1, -34, 0.5, -7)
+        pill.BackgroundColor3 = C.muted
+        pill.BorderSizePixel = 0
+        corner(7, pill)
+        local dot = Instance.new("Frame", pill)
+        dot.Size = UDim2.new(0, 12, 0, 12)
+        dot.Position = UDim2.new(0, 1, 0, 1)
+        dot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+        dot.BorderSizePixel = 0
+        corner(6, dot)
+
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(1, -40, 1, 0)
+        btn.BackgroundTransparency = 1
+        btn.Text = text
+        btn.TextColor3 = C.muted
+        btn.TextSize = 11
+        btn.Font = Enum.Font.GothamBold
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        local p2 = Instance.new("UIPadding", btn); p2.PaddingLeft = UDim.new(0,10)
+
+        local state = false
+        local function set(v)
+            state = v
+            if v then
+                frame.BackgroundColor3 = Color3.fromRGB(28, 14, 65)
+                pill.BackgroundColor3  = onColor
+                dot.Position = UDim2.new(0, 15, 0, 1)
+                dot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                btn.TextColor3 = onColor
+            else
+                frame.BackgroundColor3 = C.card
+                pill.BackgroundColor3  = C.muted
+                dot.Position = UDim2.new(0, 1, 0, 1)
+                dot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+                btn.TextColor3 = C.muted
+            end
+        end
+        btn.MouseButton1Click:Connect(function() set(not state) end)
+        return btn, function() return state end, set
+    end
+
+    local _, getAA,  setAA  = makeToggle("⚔  Auto Attack",   278, C.green)
+    local _, getATP, setATP = makeToggle("✈  Auto Spawn TP", 310, C.cyan)
+    local _, getASC, setASC = makeToggle("🖱  Auto Spawn Click", 342, C.yellow)
+
+    -- Link to global state
+    RunService.Heartbeat:Connect(function()
+        autoAttack     = getAA()
+        autoSpawnTP    = getATP()
+        autoSpawnClick = getASC()
+    end)
+
+    -- Status bar
+    local statusLbl = newLabel(page, "● Idle", 10, C.muted)
+    statusLbl.Size = UDim2.new(1, 0, 0, 14)
+    statusLbl.Position = UDim2.new(0, 2, 1, -16)
+
+    -- Mob list logic
+    local allMobs = {}
+    local mobBtns = {}
+
+    local function buildList(filter)
+        for _, v in ipairs(scroll:GetChildren()) do
+            if v:IsA("Frame") then v:Destroy() end
+        end
+        mobBtns = {}
+        for _, name in ipairs(allMobs) do
+            if filter == "" or name:lower():find(filter:lower(),1,true) then
+                local row = Instance.new("Frame", scroll)
+                row.Size = UDim2.new(1, 0, 0, 26)
+                row.BackgroundColor3 = selectedMobs[name] and C.selBg or C.card
+                row.BorderSizePixel = 0
+                corner(5, row)
+
+                local bar2 = Instance.new("Frame", row)
+                bar2.Size = UDim2.new(0, 3, 0.7, 0)
+                bar2.Position = UDim2.new(0, 2, 0.15, 0)
+                bar2.BackgroundColor3 = C.accent
+                bar2.BorderSizePixel = 0
+                bar2.Visible = selectedMobs[name] == true
+                corner(2, bar2)
+
+                local rbtn = Instance.new("TextButton", row)
+                rbtn.Size = UDim2.new(1, 0, 1, 0)
+                rbtn.BackgroundTransparency = 1
+                rbtn.Text = "👾  " .. name
+                rbtn.TextColor3 = selectedMobs[name] and C.white or C.muted
+                rbtn.TextSize = 10
+                rbtn.Font = Enum.Font.GothamBold
+                rbtn.TextXAlignment = Enum.TextXAlignment.Left
+                local pp = Instance.new("UIPadding", rbtn); pp.PaddingLeft = UDim.new(0,10)
+
+                mobBtns[name] = {row=row, btn=rbtn, bar=bar2}
+
+                rbtn.MouseButton1Click:Connect(function()
+                    if selectedMobs[name] then
+                        selectedMobs[name] = nil
+                        row.BackgroundColor3 = C.card
+                        rbtn.TextColor3 = C.muted
+                        bar2.Visible = false
+                    else
+                        selectedMobs[name] = true
+                        row.BackgroundColor3 = C.selBg
+                        rbtn.TextColor3 = C.white
+                        bar2.Visible = true
+                    end
+                    -- update status
+                    local cnt = countSelected()
+                    if cnt == 0 then
+                        selLabel.Text = "🎯  Selected: --"
+                        statusLbl.Text = "● Idle"; statusLbl.TextColor3 = C.muted
+                    elseif cnt == 1 then
+                        local n = next(selectedMobs)
+                        selLabel.Text = "🎯  Selected: " .. n
+                        statusLbl.Text = "● Farming " .. n; statusLbl.TextColor3 = C.green
+                    else
+                        selLabel.Text = "🎯  Selected: " .. cnt .. " mobs"
+                        statusLbl.Text = "● Multi-farm (" .. cnt .. ")"; statusLbl.TextColor3 = C.green
+                    end
+                end)
+            end
+        end
+        scroll.CanvasSize = UDim2.new(0,0,0, ll.AbsoluteContentSize.Y + 8)
+    end
+
+    local function refreshMobs()
+        allMobs = getMobs()
+        buildList(searchBox.Text)
+    end
+
+    reloadBtn.MouseButton1Click:Connect(function()
+        reloadBtn.Text = "⏳"
+        refreshMobs()
+        task.delay(0.4, function() reloadBtn.Text = "🔄 Reload" end)
+    end)
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function() buildList(searchBox.Text) end)
+    workspace.Alive.ChildAdded:Connect(function() task.wait(0.5); refreshMobs() end)
+    workspace.Alive.ChildRemoved:Connect(function() task.wait(0.5); refreshMobs() end)
+
+    -- Info updater
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+            if countSelected() > 0 then
+                local nearest, dist = getNearestMob()
+                local total = 0
+                for n in pairs(selectedMobs) do total += getAliveCount(n) end
+                alvLabel.Text = "📊  Alive: " .. total
+                if nearest then
+                    local hum = nearest:FindFirstChild("Humanoid")
+                    local hp  = hum and math.floor(hum.Health/hum.MaxHealth*100) or 0
+                    dstLabel.Text = "📏  Dist: " .. math.floor(dist or 0)
+                    hpLabel.Text  = "❤️  HP: " .. hp .. "%"
+                else
+                    dstLabel.Text = "📏  Dist: --"
+                    hpLabel.Text  = "❤️  HP: --"
+                end
+            else
+                alvLabel.Text = "📊  Alive: --"
+                dstLabel.Text = "📏  Dist: --"
+                hpLabel.Text  = "❤️  HP: --"
+            end
+        end
+    end)
+
+    refreshMobs()
 end
 
-local function updateSelectedLabel()
-	local count = getMobCount()
-	if count == 0 then
-		selectedLabel.Text = "🎯  Selected: --"
-		statusLabel.Text   = "● Idle"
-		statusLabel.TextColor3 = C.muted
-	elseif count == 1 then
-		local name = next(selectedMobs)
-		selectedLabel.Text = "🎯  Selected: " .. name
-		statusLabel.Text   = "● Farming " .. name
-		statusLabel.TextColor3 = C.green
-	else
-		selectedLabel.Text = "🎯  Selected: " .. count .. " mobs"
-		statusLabel.Text   = "● Multi-farm (" .. count .. ")"
-		statusLabel.TextColor3 = C.green
-	end
+-- ===================== PAGE: METHOD FARM =====================
+do
+    local page = pageMethod
+
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted)
+        l.Size = UDim2.new(1, 0, 0, 14)
+        l.Position = UDim2.new(0, 2, 0, y)
+    end
+
+    secLabel("METHOD", 0)
+
+    -- Smelt toggle
+    local smeltFrame = Instance.new("Frame", page)
+    smeltFrame.Size = UDim2.new(1, 0, 0, 34)
+    smeltFrame.Position = UDim2.new(0, 0, 0, 16)
+    smeltFrame.BackgroundColor3 = C.card
+    smeltFrame.BorderSizePixel = 0
+    corner(7, smeltFrame)
+    stroke(smeltFrame, C.border, 1)
+
+    local sPill = Instance.new("Frame", smeltFrame)
+    sPill.Size = UDim2.new(0, 32, 0, 16)
+    sPill.Position = UDim2.new(1, -38, 0.5, -8)
+    sPill.BackgroundColor3 = C.muted
+    sPill.BorderSizePixel = 0
+    corner(8, sPill)
+    local sDot = Instance.new("Frame", sPill)
+    sDot.Size = UDim2.new(0, 14, 0, 14)
+    sDot.Position = UDim2.new(0, 1, 0, 1)
+    sDot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+    sDot.BorderSizePixel = 0
+    corner(7, sDot)
+
+    local sBtn = Instance.new("TextButton", smeltFrame)
+    sBtn.Size = UDim2.new(1, -46, 1, 0)
+    sBtn.BackgroundTransparency = 1
+    sBtn.Text = "🔥  Smelt Method Farm"
+    sBtn.TextColor3 = C.muted
+    sBtn.TextSize = 12
+    sBtn.Font = Enum.Font.GothamBold
+    sBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local sp2 = Instance.new("UIPadding", sBtn); sp2.PaddingLeft = UDim.new(0,12)
+
+    local function setSmelt(v)
+        smeltMethod = v
+        if v then
+            smeltFrame.BackgroundColor3 = Color3.fromRGB(28, 14, 65)
+            sPill.BackgroundColor3 = C.yellow
+            sDot.Position = UDim2.new(0, 17, 0, 1)
+            sDot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            sBtn.TextColor3 = C.yellow
+            -- Start immediately on current character
+            local char = player.Character
+            if char then task.spawn(function() startSmeltMethod(char) end) end
+        else
+            smeltFrame.BackgroundColor3 = C.card
+            sPill.BackgroundColor3 = C.muted
+            sDot.Position = UDim2.new(0, 1, 0, 1)
+            sDot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+            sBtn.TextColor3 = C.muted
+            smeltLoop += 1 -- stops any running loop
+        end
+    end
+    sBtn.MouseButton1Click:Connect(function() setSmelt(not smeltMethod) end)
+
+    -- Info about smelt method
+    local desc = Instance.new("Frame", page)
+    desc.Size = UDim2.new(1, 0, 0, 100)
+    desc.Position = UDim2.new(0, 0, 0, 56)
+    desc.BackgroundColor3 = C.card
+    desc.BorderSizePixel = 0
+    corner(7, desc)
+    stroke(desc, C.border, 1)
+
+    local dp = Instance.new("UIPadding", desc)
+    dp.PaddingLeft=UDim.new(0,10); dp.PaddingTop=UDim.new(0,8)
+    dp.PaddingRight=UDim.new(0,10)
+
+    local descTxt = Instance.new("TextLabel", desc)
+    descTxt.Size = UDim2.new(1, 0, 1, 0)
+    descTxt.BackgroundTransparency = 1
+    descTxt.Text = "Smelt Method:\n• Z → activate skill 1\n• X → activate skill 2\n• Spam C → repeat skill 3\n• Auto click Spawn button\n• Re-activates after death"
+    descTxt.TextColor3 = C.muted
+    descTxt.TextSize = 11
+    descTxt.Font = Enum.Font.Gotham
+    descTxt.TextXAlignment = Enum.TextXAlignment.Left
+    descTxt.TextYAlignment = Enum.TextYAlignment.Top
+    descTxt.TextWrapped = true
+
+    -- ── WEAPON SELECTOR ──────────────────────────────────
+    secLabel("WEAPON", 162)
+
+    -- Selected weapon display
+    local weaponDisplay = Instance.new("TextButton", page)
+    weaponDisplay.Size = UDim2.new(1, 0, 0, 30)
+    weaponDisplay.Position = UDim2.new(0, 0, 0, 178)
+    weaponDisplay.BackgroundColor3 = C.card
+    weaponDisplay.BorderSizePixel = 0
+    weaponDisplay.Text = "🗡  None selected  ▼"
+    weaponDisplay.TextColor3 = C.muted
+    weaponDisplay.TextSize = 11
+    weaponDisplay.Font = Enum.Font.GothamBold
+    weaponDisplay.TextXAlignment = Enum.TextXAlignment.Left
+    corner(6, weaponDisplay)
+    stroke(weaponDisplay, C.accent, 1)
+    local wdp = Instance.new("UIPadding", weaponDisplay); wdp.PaddingLeft = UDim.new(0,10)
+
+    -- Weapon dropdown (shown/hidden on click)
+    local weaponDropdown = Instance.new("Frame", page)
+    weaponDropdown.Size = UDim2.new(1, 0, 0, 0)
+    weaponDropdown.Position = UDim2.new(0, 0, 0, 210)
+    weaponDropdown.BackgroundColor3 = C.selBg
+    weaponDropdown.BorderSizePixel = 0
+    weaponDropdown.Visible = false
+    weaponDropdown.ClipsDescendants = true
+    corner(6, weaponDropdown)
+    stroke(weaponDropdown, C.accent, 1)
+
+    local wScroll = Instance.new("ScrollingFrame", weaponDropdown)
+    wScroll.Size = UDim2.new(1, 0, 1, 0)
+    wScroll.BackgroundTransparency = 1
+    wScroll.BorderSizePixel = 0
+    wScroll.ScrollBarThickness = 3
+    wScroll.ScrollBarImageColor3 = C.accent
+    wScroll.CanvasSize = UDim2.new(0,0,0,0)
+
+    local wll = Instance.new("UIListLayout", wScroll); wll.Padding = UDim.new(0,2)
+    local wlp = Instance.new("UIPadding", wScroll)
+    wlp.PaddingTop=UDim.new(0,4); wlp.PaddingLeft=UDim.new(0,4)
+    wlp.PaddingRight=UDim.new(0,4); wlp.PaddingBottom=UDim.new(0,4)
+
+    local dropOpen = false
+
+    local function buildWeaponList()
+        for _, v in ipairs(wScroll:GetChildren()) do
+            if v:IsA("TextButton") then v:Destroy() end
+        end
+        local weapons = getWeapons()
+        -- Add "None" option
+        table.insert(weapons, 1, "(None)")
+        for _, wname in ipairs(weapons) do
+            local wb = Instance.new("TextButton", wScroll)
+            wb.Size = UDim2.new(1, 0, 0, 24)
+            wb.BackgroundColor3 = (equippedWeapon == wname) and C.accent or Color3.fromRGB(30,20,60)
+            wb.BorderSizePixel = 0
+            wb.Text = "  " .. wname
+            wb.TextColor3 = C.white
+            wb.TextSize = 10
+            wb.Font = Enum.Font.GothamBold
+            wb.TextXAlignment = Enum.TextXAlignment.Left
+            corner(4, wb)
+            wb.MouseButton1Click:Connect(function()
+                if wname == "(None)" then
+                    equippedWeapon = nil
+                    weaponDisplay.Text = "🗡  None selected  ▼"
+                    weaponDisplay.TextColor3 = C.muted
+                else
+                    equippedWeapon = wname
+                    weaponDisplay.Text = "🗡  " .. wname .. "  ▼"
+                    weaponDisplay.TextColor3 = C.white
+                    equipWeapon(wname)
+                end
+                -- close dropdown
+                dropOpen = false
+                weaponDropdown.Visible = false
+                buildWeaponList()
+            end)
+        end
+        wScroll.CanvasSize = UDim2.new(0,0,0, wll.AbsoluteContentSize.Y + 8)
+        -- Resize dropdown max 120px
+        local h = math.min(120, wll.AbsoluteContentSize.Y + 10)
+        weaponDropdown.Size = UDim2.new(1, 0, 0, h)
+    end
+
+    weaponDisplay.MouseButton1Click:Connect(function()
+        dropOpen = not dropOpen
+        if dropOpen then
+            buildWeaponList()
+            weaponDropdown.Visible = true
+        else
+            weaponDropdown.Visible = false
+        end
+    end)
+
+    -- Refresh weapon list btn
+    local wReload = Instance.new("TextButton", page)
+    wReload.Size = UDim2.new(0, 60, 0, 22)
+    wReload.Position = UDim2.new(1, -62, 0, 178)
+    wReload.BackgroundColor3 = C.accent
+    wReload.BorderSizePixel = 0
+    wReload.Text = "🔄"
+    wReload.TextColor3 = Color3.fromRGB(255,255,255)
+    wReload.TextSize = 11
+    wReload.Font = Enum.Font.GothamBold
+    corner(5, wReload)
+    -- position it over right of display
+    wReload.Position = UDim2.new(1, -64, 0, 178)
+    wReload.Size = UDim2.new(0, 60, 0, 30)
+    wReload.MouseButton1Click:Connect(function()
+        buildWeaponList()
+    end)
 end
 
-local function buildList(filter)
-	-- clear
-	for _, v in ipairs(scroll:GetChildren()) do
-		if v:IsA("Frame") then v:Destroy() end
-	end
-	mobButtons = {}
+-- ===================== PAGE: SETTING =====================
+do
+    local page = pageSetting
 
-	for _, name in ipairs(allMobs) do
-		if filter == "" or name:lower():find(filter:lower(), 1, true) then
-			local row = Instance.new("Frame", scroll)
-			row.Size = UDim2.new(1, 0, 0, 28)
-			row.BackgroundColor3 = selectedMobs[name] and C.selectedBg or C.card
-			row.BorderSizePixel = 0
-			corner(6, row)
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted)
+        l.Size = UDim2.new(1, 0, 0, 14)
+        l.Position = UDim2.new(0, 2, 0, y)
+    end
 
-			-- Colored left bar if selected
-			local bar = Instance.new("Frame", row)
-			bar.Size = UDim2.new(0, 3, 1, -6)
-			bar.Position = UDim2.new(0, 3, 0, 3)
-			bar.BackgroundColor3 = C.accent
-			bar.BorderSizePixel = 0
-			bar.Visible = selectedMobs[name] == true
-			corner(2, bar)
+    secLabel("ABOUT", 0)
 
-			local btn = Instance.new("TextButton", row)
-			btn.Size = UDim2.new(1, 0, 1, 0)
-			btn.BackgroundTransparency = 1
-			btn.Text = "👾  " .. name
-			btn.TextColor3 = selectedMobs[name] and C.white or C.muted
-			btn.TextSize = 11
-			btn.Font = Enum.Font.GothamBold
-			btn.TextXAlignment = Enum.TextXAlignment.Left
-			local p = Instance.new("UIPadding", btn)
-			p.PaddingLeft = UDim.new(0, 12)
+    local infoCard = Instance.new("Frame", page)
+    infoCard.Size = UDim2.new(1, 0, 0, 80)
+    infoCard.Position = UDim2.new(0, 0, 0, 16)
+    infoCard.BackgroundColor3 = C.card
+    infoCard.BorderSizePixel = 0
+    corner(7, infoCard)
+    stroke(infoCard, C.border, 1)
+    local icp = Instance.new("UIPadding", infoCard); icp.PaddingLeft=UDim.new(0,10); icp.PaddingTop=UDim.new(0,8)
 
-			mobButtons[name] = {row = row, btn = btn, bar = bar}
+    local function infoRow(text, color, y)
+        local l = newLabel(infoCard, text, 11, color)
+        l.Size = UDim2.new(1, -10, 0, 18)
+        l.Position = UDim2.new(0, 0, 0, y)
+    end
+    infoRow("⚔  Tuanh Farm Hub V.003", C.white, 0)
+    infoRow("📦  FREEMIUM Build", C.yellow, 20)
+    infoRow("✅  Auto Attack + Spawn TP", C.green, 40)
+    infoRow("🔥  Smelt Method + Weapon Equip", C.cyan, 58)
 
-			btn.MouseButton1Click:Connect(function()
-				-- TOGGLE: click again to deselect
-				if selectedMobs[name] then
-					selectedMobs[name] = nil
-					row.BackgroundColor3 = C.card
-					btn.TextColor3 = C.muted
-					bar.Visible = false
-				else
-					selectedMobs[name] = true
-					row.BackgroundColor3 = C.selectedBg
-					btn.TextColor3 = C.white
-					bar.Visible = true
-				end
-				updateSelectedLabel()
-			end)
-		end
-	end
+    secLabel("THEME COLORS", 104)
+    local colorCard = Instance.new("Frame", page)
+    colorCard.Size = UDim2.new(1, 0, 0, 50)
+    colorCard.Position = UDim2.new(0, 0, 0, 120)
+    colorCard.BackgroundColor3 = C.card
+    colorCard.BorderSizePixel = 0
+    corner(7, colorCard)
+    stroke(colorCard, C.border, 1)
 
-	scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    local colors = {C.accent, C.green, C.cyan, C.yellow, C.red, C.white}
+    local ccpad = Instance.new("UIPadding", colorCard); ccpad.PaddingLeft=UDim.new(0,10); ccpad.PaddingTop=UDim.new(0,14)
+    for i, clr in ipairs(colors) do
+        local dot = Instance.new("Frame", colorCard)
+        dot.Size = UDim2.new(0, 18, 0, 18)
+        dot.Position = UDim2.new(0, (i-1)*26, 0, 14)
+        dot.BackgroundColor3 = clr
+        dot.BorderSizePixel = 0
+        corner(9, dot)
+    end
 end
 
-local function refreshMobs()
-	allMobs = getMobs()
-	buildList(searchBox.Text)
-	updateSelectedLabel()
+-- ===================== DEFAULT TAB =====================
+tabs["Auto Farm"].btn.MouseButton1Click:Fire()
+-- Manually activate since Fire() might not work:
+do
+    for _, t in pairs(tabs) do
+        t.page.Visible = false
+        t.btn.BackgroundColor3 = C.card
+        t.btn.TextColor3 = C.muted
+        t.bar.Visible = false
+    end
+    tabs["Auto Farm"].page.Visible = true
+    tabs["Auto Farm"].btn.BackgroundColor3 = C.selBg
+    tabs["Auto Farm"].btn.TextColor3 = C.white
+    tabs["Auto Farm"].bar.Visible = true
+    activeTab = "Auto Farm"
 end
 
-refreshBtn.MouseButton1Click:Connect(function()
-	refreshBtn.Text = "⏳"
-	refreshMobs()
-	task.delay(0.5, function() refreshBtn.Text = "🔄 Reload" end)
-end)
-
-searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-	buildList(searchBox.Text)
-end)
-
-workspace.Alive.ChildAdded:Connect(function()
-	task.wait(0.5)
-	refreshMobs()
-end)
-workspace.Alive.ChildRemoved:Connect(function()
-	task.wait(0.5)
-	refreshMobs()
-end)
-
--- ===================== INFO UPDATER =====================
-task.spawn(function()
-	while true do
-		task.wait(0.5)
-		local count = getMobCount()
-		if count > 0 then
-			local nearest, dist = getNearestMobFromList(selectedMobs)
-			local totalAlive = 0
-			for name in pairs(selectedMobs) do
-				totalAlive = totalAlive + getAliveCount(name)
-			end
-			aliveLabel.Text = "📊  Alive: " .. totalAlive
-			if nearest then
-				local hum = nearest:FindFirstChild("Humanoid")
-				local hp  = hum and math.floor(hum.Health / hum.MaxHealth * 100) or 0
-				distLabel.Text = "📏  Dist: " .. math.floor(dist or 0)
-				hpLabel.Text   = "❤️  HP: " .. hp .. "%"
-			else
-				distLabel.Text = "📏  Dist: --"
-				hpLabel.Text   = "❤️  HP: --"
-			end
-		else
-			aliveLabel.Text = "📊  Alive: --"
-			distLabel.Text  = "📏  Dist: --"
-			hpLabel.Text    = "❤️  HP: --"
-		end
-	end
-end)
-
--- ===================== AUTO ATTACK + AUTO SPAWN TP =====================
-task.spawn(function()
-	while true do
-		task.wait(0.2)
-		if getMobCount() == 0 then continue end
-		if not getAutoAttack() then continue end
-
-		local char = player.Character
-		if not char then continue end
-		local hrp = char:FindFirstChild("HumanoidRootPart")
-		if not hrp then continue end
-
-		local nearest, dist = getNearestMobFromList(selectedMobs)
-		if not nearest then continue end
-
-		local mobHrp = nearest:FindFirstChild("HumanoidRootPart")
-		if not mobHrp then continue end
-
-		-- Auto Spawn TP
-		if getAutoSpawn() then
-			hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 0, 3)
-		end
-
-		-- Auto Attack
-		VirtualUser:Button1Down(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
-		task.wait(0.05)
-		VirtualUser:Button1Up(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
-	end
-end)
-
--- ===================== AUTO SPAWN CLICK (GUI CLICK) =====================
-local function clickGui(guiObj)
-	local pos  = guiObj.AbsolutePosition
-	local size = guiObj.AbsoluteSize
-	local x = pos.X + size.X / 2
-	local y = pos.Y + size.Y / 2 + 50
-	VIM:SendMouseButtonEvent(x, y, 0, true,  game, 0)
-	task.wait(0.05)
-	VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
-end
-
-task.spawn(function()
-	while task.wait(0.2) do
-		if not getAutoSpawnClick() then continue end
-		for _, v in ipairs(player.PlayerGui:GetDescendants()) do
-			if v:IsA("TextButton") and v.Visible then
-				local txt = string.lower(v.Text)
-				if txt == "spawn" or v.Text == "เลือก" then
-					clickGui(v)
-					task.wait(2)
-				end
-			end
-		end
-	end
-end)
-
--- Init
-refreshMobs()
-print("✅ Tuanh Farm Hub V.001 đã load!")
+print("✅ Tuanh Farm Hub V.003 loaded!")
