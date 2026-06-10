@@ -2,7 +2,7 @@
 -- Tab UI: Auto Farm | Method | Setting
 
 -- ===================== KEY SYSTEM =====================
-local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbxwWnoOrOQgySSAoM7ay6LFTBolpZQJCQCQ4ejfz9QIk-bvNG1x6yC85PNzewjpaMqGFg/exec"
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbw9egpALa_MdNq51oL_k0nehDI1OioaMbHs22OWFhGgJP7f_xGFkMQta7mkjl8uUl3Xmg/exec"
 
 local function getHWID()
     return game:GetService("RbxAnalyticsService"):GetClientId()
