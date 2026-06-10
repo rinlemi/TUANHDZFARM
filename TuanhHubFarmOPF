@@ -120,10 +120,10 @@ local function startSmeltMethod(char)
     smeltLoop += 1
     local myLoop = smeltLoop
     local hum = char:WaitForChild("Humanoid")
-    task.wait(2)
+    task.wait(3.5)
     if myLoop ~= smeltLoop then return end
     pressKey(Enum.KeyCode.Z)
-    task.wait(0.2)
+    task.wait(0.5)
     pressKey(Enum.KeyCode.X)
     task.spawn(function()
         while hum.Health > 0 and myLoop == smeltLoop and smeltMethod do
