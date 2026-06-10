@@ -167,7 +167,7 @@ end)
 
 -- ===================== AUTO ATTACK + SPAWN TP =====================
 task.spawn(function()
-    while task.wait(0.08) do  -- faster tick = mượt hơn
+    while task.wait(0.03) do  -- faster tick = mượt hơn
         if countSelected() == 0 or not autoAttack then continue end
         local char = player.Character
         if not char then continue end
