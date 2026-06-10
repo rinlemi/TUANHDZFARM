@@ -108,7 +108,7 @@ end
 
 -- Auto re-equip on respawn
 player.CharacterAdded:Connect(function(char)
-    task.wait(1.5)
+    task.wait(3)
     if equippedWeapon then
         equipWeapon(equippedWeapon)
     end
