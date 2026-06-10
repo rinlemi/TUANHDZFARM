@@ -134,6 +134,15 @@ end
 _submitBtn.MouseButton1Click:Connect(_verify)
 _input.FocusLost:Connect(function(enter) if enter then _verify() end end)
 
+-- Tự động dùng key từ _G nếu có
+if _G.Key and _G.Key ~= "" then
+    local ok, msg = checkKey(_G.Key)
+    if ok then
+        keyGui:Destroy()
+        _verified = true
+    end
+end
+
 repeat task.wait(0.1) until _verified
 -- ===================== END KEY SYSTEM =====================
 
