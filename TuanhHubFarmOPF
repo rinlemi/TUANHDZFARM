@@ -1015,14 +1015,15 @@ do
 
     -- Export button
     exportBtn.MouseButton1Click:Connect(function()
-        local cfg = buildConfigString()
-        outputBox.Text = cfg
-        outputBox.TextColor3 = C.cyan
-        exportStatus.Text = "✅ Đã tạo! Bấm vào ô trên rồi Ctrl+A → Copy"
-        exportStatus.TextColor3 = C.green
-        outputBox:CaptureFocus()
-        task.delay(4, function() exportStatus.Text = "" end)
-    end)
+    local cfg = buildConfigString()
+    outputBox.Text = cfg
+    outputBox.TextColor3 = C.cyan
+    -- Tự copy vào clipboard luôn
+    setclipboard(cfg)
+    exportStatus.Text = "✅ Đã copy vào clipboard! Paste ngay được rồi"
+    exportStatus.TextColor3 = C.green
+    task.delay(4, function() exportStatus.Text = "" end)
+end)
 
     -- Save to _G (session only, no restart needed)
     saveGBtn.MouseButton1Click:Connect(function()
