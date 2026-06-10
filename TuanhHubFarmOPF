@@ -402,7 +402,6 @@ local function collectAllChests()
     print("🎁 Tìm thấy", #chests, "chest!")
     if #chests == 0 then
         task.wait(1)
-        if autoChestOn then hopServer("Không có chest") end
         return
     end
     for _, chest in ipairs(chests) do
@@ -412,7 +411,6 @@ local function collectAllChests()
     task.wait(1)
     local remaining = getAllChests()
     if #remaining == 0 then
-        if autoChestOn then hopServer("Hết chest") end
     else
         collectAllChests()
     end
@@ -1192,14 +1190,7 @@ do
                         task.wait(1)
                     end
                 end)
-                -- Auto hop every 1 min
-                task.spawn(function()
-                    while autoChestOn do
-                        task.wait(60)
-                        if autoChestOn then hopServer("1 phút auto hop") end
-                    end
-                end)
-            else
+            
                 chestStatusLbl.Text = "🎁  Status: OFF"
                 chestStatusLbl.TextColor3 = C.muted
                 if chestThread then pcall(function() task.cancel(chestThread) end); chestThread = nil end
