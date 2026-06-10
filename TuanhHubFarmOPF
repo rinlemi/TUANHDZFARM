@@ -1,7 +1,142 @@
--- ╔══════════════════════════════════════════════╗
--- ║        TUANH FARM HUB  V.003                ║
--- ║  Tab UI: Auto Farm | Method | Setting        ║
--- ╚══════════════════════════════════════════════╝
+-- TUANH FARM HUB V.003
+-- Tab UI: Auto Farm | Method | Setting
+
+-- ===================== KEY SYSTEM =====================
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycby0O2EauVzUBz40v3T4hnu1mbzSVETaLP2D-Ja5qx72awGR-s4gswKJDqY2bGvmTc-QPQ/exec"
+
+local function getHWID()
+    return game:GetService("RbxAnalyticsService"):GetClientId()
+end
+
+local function checkKey(key)
+    local hwid = getHWID()
+    local url  = DEPLOY_URL .. "?key=" .. key .. "&hwid=" .. hwid
+    local ok, res = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if not ok then return false, "Khong ket noi duoc server" end
+    if res == "SUCCESS"       then return true,  "OK" end
+    if res == "HWID_MISMATCH" then return false, "Key nay da dung tren may khac!" end
+    if res == "INVALID_KEY"   then return false, "Key khong hop le!" end
+    return false, "Loi: " .. tostring(res)
+end
+
+local keyGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+keyGui.ResetOnSpawn = false
+keyGui.Name = "TuanhKeySystem"
+
+local bg = Instance.new("Frame", keyGui)
+bg.Size = UDim2.new(1, 0, 1, 0)
+bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+bg.BackgroundTransparency = 0.4
+bg.BorderSizePixel = 0
+
+local box = Instance.new("Frame", keyGui)
+box.Size = UDim2.new(0, 340, 0, 190)
+box.Position = UDim2.new(0.5, -170, 0.5, -95)
+box.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+box.BorderSizePixel = 0
+local _bc = Instance.new("UICorner", box); _bc.CornerRadius = UDim.new(0, 10)
+local _bs = Instance.new("UIStroke", box); _bs.Color = Color3.fromRGB(120, 55, 255); _bs.Thickness = 1.5
+
+local _title = Instance.new("TextLabel", box)
+_title.Size = UDim2.new(1, 0, 0, 36)
+_title.BackgroundColor3 = Color3.fromRGB(120, 55, 255)
+_title.BorderSizePixel = 0
+_title.Text = "TUANH FARM HUB - KEY SYSTEM"
+_title.TextColor3 = Color3.fromRGB(255, 255, 255)
+_title.TextSize = 12
+_title.Font = Enum.Font.GothamBold
+local _tc = Instance.new("UICorner", _title); _tc.CornerRadius = UDim.new(0, 10)
+local _tf = Instance.new("Frame", _title)
+_tf.Size = UDim2.new(1, 0, 0.5, 0)
+_tf.Position = UDim2.new(0, 0, 0.5, 0)
+_tf.BackgroundColor3 = Color3.fromRGB(120, 55, 255)
+_tf.BorderSizePixel = 0
+
+local _statusLbl = Instance.new("TextLabel", box)
+_statusLbl.Size = UDim2.new(1, -20, 0, 20)
+_statusLbl.Position = UDim2.new(0, 10, 0, 44)
+_statusLbl.BackgroundTransparency = 1
+_statusLbl.Text = "Nhap key de tiep tuc..."
+_statusLbl.TextColor3 = Color3.fromRGB(100, 100, 130)
+_statusLbl.TextSize = 11
+_statusLbl.Font = Enum.Font.Gotham
+_statusLbl.TextXAlignment = Enum.TextXAlignment.Center
+
+local _input = Instance.new("TextBox", box)
+_input.Size = UDim2.new(1, -20, 0, 32)
+_input.Position = UDim2.new(0, 10, 0, 72)
+_input.BackgroundColor3 = Color3.fromRGB(26, 26, 46)
+_input.BorderSizePixel = 0
+_input.PlaceholderText = "Nhap key cua ban..."
+_input.Text = ""
+_input.TextColor3 = Color3.fromRGB(230, 230, 245)
+_input.PlaceholderColor3 = Color3.fromRGB(100, 100, 130)
+_input.TextSize = 12
+_input.Font = Enum.Font.GothamBold
+_input.ClearTextOnFocus = false
+local _ic = Instance.new("UICorner", _input); _ic.CornerRadius = UDim.new(0, 6)
+local _is = Instance.new("UIStroke", _input); _is.Color = Color3.fromRGB(120, 55, 255); _is.Thickness = 1
+local _ip = Instance.new("UIPadding", _input); _ip.PaddingLeft = UDim.new(0, 8)
+
+local _submitBtn = Instance.new("TextButton", box)
+_submitBtn.Size = UDim2.new(1, -20, 0, 32)
+_submitBtn.Position = UDim2.new(0, 10, 0, 114)
+_submitBtn.BackgroundColor3 = Color3.fromRGB(120, 55, 255)
+_submitBtn.BorderSizePixel = 0
+_submitBtn.Text = "XAC NHAN KEY"
+_submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+_submitBtn.TextSize = 12
+_submitBtn.Font = Enum.Font.GothamBold
+local _sc = Instance.new("UICorner", _submitBtn); _sc.CornerRadius = UDim.new(0, 6)
+
+local _hwidLbl = Instance.new("TextLabel", box)
+_hwidLbl.Size = UDim2.new(1, -20, 0, 16)
+_hwidLbl.Position = UDim2.new(0, 10, 0, 162)
+_hwidLbl.BackgroundTransparency = 1
+_hwidLbl.Text = "HWID: " .. getHWID()
+_hwidLbl.TextColor3 = Color3.fromRGB(60, 60, 80)
+_hwidLbl.TextSize = 8
+_hwidLbl.Font = Enum.Font.Gotham
+_hwidLbl.TextXAlignment = Enum.TextXAlignment.Center
+_hwidLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+local _verified = false
+
+local function _verify()
+    local key = _input.Text
+    if key == "" then
+        _statusLbl.Text = "Hay nhap key!"
+        _statusLbl.TextColor3 = Color3.fromRGB(255, 80, 80)
+        return
+    end
+    _submitBtn.Text = "Dang kiem tra..."
+    _submitBtn.BackgroundColor3 = Color3.fromRGB(60, 30, 120)
+    _statusLbl.Text = "Connecting to server..."
+    _statusLbl.TextColor3 = Color3.fromRGB(255, 200, 60)
+
+    local ok, msg = checkKey(key)
+    if ok then
+        _statusLbl.Text = "Key hop le! Dang tai..."
+        _statusLbl.TextColor3 = Color3.fromRGB(80, 255, 140)
+        task.wait(1)
+        keyGui:Destroy()
+        _verified = true
+    else
+        _statusLbl.Text = msg
+        _statusLbl.TextColor3 = Color3.fromRGB(255, 80, 80)
+        _submitBtn.Text = "XAC NHAN KEY"
+        _submitBtn.BackgroundColor3 = Color3.fromRGB(120, 55, 255)
+    end
+end
+
+_submitBtn.MouseButton1Click:Connect(_verify)
+_input.FocusLost:Connect(function(enter) if enter then _verify() end end)
+
+repeat task.wait(0.1) until _verified
+-- ===================== END KEY SYSTEM =====================
+
 
 local Players      = game:GetService("Players")
 local VirtualUser  = game:GetService("VirtualUser")
@@ -31,7 +166,7 @@ if _G.TuanhConfig then
             selectedMobs[name] = true
         end
     end
-    print("✅ Loaded config from _G.TuanhConfig")
+    print("Loaded config OK")
 end
 
 -- ===================== HELPERS =====================
@@ -1015,15 +1150,14 @@ do
 
     -- Export button
     exportBtn.MouseButton1Click:Connect(function()
-    local cfg = buildConfigString()
-    outputBox.Text = cfg
-    outputBox.TextColor3 = C.cyan
-    -- Tự copy vào clipboard luôn
-    setclipboard(cfg)
-    exportStatus.Text = "✅ Đã copy vào clipboard! Paste ngay được rồi"
-    exportStatus.TextColor3 = C.green
-    task.delay(4, function() exportStatus.Text = "" end)
-end)
+        local cfg = buildConfigString()
+        outputBox.Text = cfg
+        outputBox.TextColor3 = C.cyan
+        setclipboard(cfg)
+        exportStatus.Text = "✅ Đã copy vào clipboard! Paste ngay được rồi"
+        exportStatus.TextColor3 = C.green
+        task.delay(4, function() exportStatus.Text = "" end)
+    end)
 
     -- Save to _G (session only, no restart needed)
     saveGBtn.MouseButton1Click:Connect(function()
@@ -1083,4 +1217,4 @@ do
     activeTab = "Auto Farm"
 end
 
-print("✅ Tuanh Farm Hub V.003 loaded!")
+print("Tuanh Farm Hub V.003 loaded!")
