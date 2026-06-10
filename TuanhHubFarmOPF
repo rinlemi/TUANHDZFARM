@@ -1,0 +1,343 @@
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- STATE
+local selectedMobName = nil
+local autoAttack = false
+local autoSpawn = false
+local farmThread = nil
+
+-- ===================== MOB MANAGER =====================
+local function getMobs()
+	local seen = {}
+	local list = {}
+	for _, mob in ipairs(workspace.Alive:GetChildren()) do
+		local hum = mob:FindFirstChild("Humanoid")
+		if hum and hum.Health > 0 and not seen[mob.Name] then
+			seen[mob.Name] = true
+			table.insert(list, mob.Name)
+		end
+	end
+	table.sort(list)
+	return list
+end
+
+local function getAliveCount(name)
+	local count = 0
+	for _, mob in ipairs(workspace.Alive:GetChildren()) do
+		local hum = mob:FindFirstChild("Humanoid")
+		if mob.Name == name and hum and hum.Health > 0 then
+			count = count + 1
+		end
+	end
+	return count
+end
+
+local function getNearestMob(name)
+	local char = player.Character
+	if not char then return nil end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+	local nearest, dist = nil, math.huge
+	for _, mob in ipairs(workspace.Alive:GetChildren()) do
+		local hum = mob:FindFirstChild("Humanoid")
+		local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+		if mob.Name == name and hum and hum.Health > 0 and mobHrp then
+			local d = (hrp.Position - mobHrp.Position).Magnitude
+			if d < dist then
+				dist = d
+				nearest = mob
+			end
+		end
+	end
+	return nearest, dist
+end
+
+-- ===================== GUI =====================
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false
+gui.Name = "TuanhFarmHub"
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 240, 0, 420)
+main.Position = UDim2.new(0, 10, 0.1, 0)
+main.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", main)
+stroke.Color = Color3.fromRGB(0, 150, 255)
+stroke.Thickness = 1.5
+
+-- Title
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 36)
+title.BackgroundColor3 = Color3.fromRGB(0, 90, 200)
+title.BorderSizePixel = 0
+title.Text = "⚔️ TUANH FARM HUB"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 13
+title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+
+-- Search box
+local searchBox = Instance.new("TextBox", main)
+searchBox.Size = UDim2.new(1, -10, 0, 30)
+searchBox.Position = UDim2.new(0, 5, 0, 42)
+searchBox.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+searchBox.BorderSizePixel = 0
+searchBox.PlaceholderText = "🔍 Search mob..."
+searchBox.Text = ""
+searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+searchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+searchBox.TextSize = 12
+searchBox.Font = Enum.Font.GothamBold
+Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
+
+-- Refresh button
+local refreshBtn = Instance.new("TextButton", main)
+refreshBtn.Size = UDim2.new(1, -10, 0, 26)
+refreshBtn.Position = UDim2.new(0, 5, 0, 77)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 180)
+refreshBtn.BorderSizePixel = 0
+refreshBtn.Text = "🔄 Làm mới danh sách"
+refreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+refreshBtn.TextSize = 11
+refreshBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+
+-- Mob list scroll
+local scroll = Instance.new("ScrollingFrame", main)
+scroll.Size = UDim2.new(1, -10, 0, 130)
+scroll.Position = UDim2.new(0, 5, 0, 108)
+scroll.BackgroundColor3 = Color3.fromRGB(18, 18, 35)
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 3
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.Padding = UDim.new(0, 2)
+local listPad = Instance.new("UIPadding", scroll)
+listPad.PaddingTop = UDim.new(0, 4)
+listPad.PaddingLeft = UDim.new(0, 4)
+listPad.PaddingRight = UDim.new(0, 4)
+
+-- Info frame
+local infoFrame = Instance.new("Frame", main)
+infoFrame.Size = UDim2.new(1, -10, 0, 80)
+infoFrame.Position = UDim2.new(0, 5, 0, 243)
+infoFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 35)
+infoFrame.BorderSizePixel = 0
+Instance.new("UICorner", infoFrame).CornerRadius = UDim.new(0, 8)
+
+local selectedLabel = Instance.new("TextLabel", infoFrame)
+selectedLabel.Size = UDim2.new(1, 0, 0.33, 0)
+selectedLabel.BackgroundTransparency = 1
+selectedLabel.Text = "🎯 Selected: --"
+selectedLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+selectedLabel.TextSize = 11
+selectedLabel.Font = Enum.Font.GothamBold
+
+local aliveLabel = Instance.new("TextLabel", infoFrame)
+aliveLabel.Size = UDim2.new(0.5, 0, 0.33, 0)
+aliveLabel.Position = UDim2.new(0, 0, 0.33, 0)
+aliveLabel.BackgroundTransparency = 1
+aliveLabel.Text = "📊 Alive: --"
+aliveLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+aliveLabel.TextSize = 11
+aliveLabel.Font = Enum.Font.GothamBold
+
+local distLabel = Instance.new("TextLabel", infoFrame)
+distLabel.Size = UDim2.new(0.5, 0, 0.33, 0)
+distLabel.Position = UDim2.new(0.5, 0, 0.33, 0)
+distLabel.BackgroundTransparency = 1
+distLabel.Text = "📏 Dist: --"
+distLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+distLabel.TextSize = 11
+distLabel.Font = Enum.Font.GothamBold
+
+local hpLabel = Instance.new("TextLabel", infoFrame)
+hpLabel.Size = UDim2.new(1, 0, 0.33, 0)
+hpLabel.Position = UDim2.new(0, 0, 0.66, 0)
+hpLabel.BackgroundTransparency = 1
+hpLabel.Text = "❤️ HP: --"
+hpLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+hpLabel.TextSize = 11
+hpLabel.Font = Enum.Font.GothamBold
+
+-- Toggles
+local function makeToggle(parent, text, yPos, color)
+	local frame = Instance.new("Frame", parent)
+	frame.Size = UDim2.new(1, -10, 0, 28)
+	frame.Position = UDim2.new(0, 5, 0, yPos)
+	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+	frame.BorderSizePixel = 0
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+
+	local btn = Instance.new("TextButton", frame)
+	btn.Size = UDim2.new(1, 0, 1, 0)
+	btn.BackgroundTransparency = 1
+	btn.Text = "☐ " .. text
+	btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	btn.TextSize = 12
+	btn.Font = Enum.Font.GothamBold
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	local p = Instance.new("UIPadding", btn)
+	p.PaddingLeft = UDim.new(0, 8)
+
+	local on = false
+	btn.MouseButton1Click:Connect(function()
+		on = not on
+		if on then
+			btn.Text = "☑ " .. text
+			btn.TextColor3 = color or Color3.fromRGB(0, 255, 100)
+			frame.BackgroundColor3 = Color3.fromRGB(0, 60, 30)
+		else
+			btn.Text = "☐ " .. text
+			btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+			frame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+		end
+	end)
+
+	return btn, function() return on end
+end
+
+local autoAttackBtn, getAutoAttack = makeToggle(main, "Auto Attack", 328, Color3.fromRGB(0, 255, 100))
+local autoSpawnBtn, getAutoSpawn = makeToggle(main, "Auto Spawn TP", 361, Color3.fromRGB(0, 200, 255))
+
+-- Status
+local statusLabel = Instance.new("TextLabel", main)
+statusLabel.Size = UDim2.new(1, -10, 0, 24)
+statusLabel.Position = UDim2.new(0, 5, 0, 394)
+statusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "Status: Idle"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamBold
+Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
+
+-- ===================== MOB LIST =====================
+local allMobs = {}
+local selectedBtn = nil
+
+local function buildList(filter)
+	for _, v in ipairs(scroll:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
+	end
+
+	for _, name in ipairs(allMobs) do
+		if filter == "" or name:lower():find(filter:lower()) then
+			local btn = Instance.new("TextButton", scroll)
+			btn.Size = UDim2.new(1, 0, 0, 26)
+			btn.BackgroundColor3 = Color3.fromRGB(25, 25, 48)
+			btn.BorderSizePixel = 0
+			btn.Text = "👾 " .. name
+			btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+			btn.TextSize = 11
+			btn.Font = Enum.Font.GothamBold
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+			local p = Instance.new("UIPadding", btn)
+			p.PaddingLeft = UDim.new(0, 6)
+
+			if selectedMobName == name then
+				btn.BackgroundColor3 = Color3.fromRGB(0, 80, 160)
+			end
+
+			btn.MouseButton1Click:Connect(function()
+				selectedMobName = name
+				selectedLabel.Text = "🎯 Selected: " .. name
+				for _, b in ipairs(scroll:GetChildren()) do
+					if b:IsA("TextButton") then
+						b.BackgroundColor3 = Color3.fromRGB(25, 25, 48)
+					end
+				end
+				btn.BackgroundColor3 = Color3.fromRGB(0, 80, 160)
+				statusLabel.Text = "Status: Farming " .. name
+				statusLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+			end)
+		end
+	end
+
+	scroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 8)
+end
+
+local function refreshMobs()
+	allMobs = getMobs()
+	buildList(searchBox.Text)
+end
+
+refreshBtn.MouseButton1Click:Connect(refreshMobs)
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	buildList(searchBox.Text)
+end)
+
+workspace.Alive.ChildAdded:Connect(function()
+	task.wait(0.3)
+	refreshMobs()
+end)
+workspace.Alive.ChildRemoved:Connect(function()
+	task.wait(0.3)
+	refreshMobs()
+end)
+
+-- ===================== INFO UPDATER =====================
+task.spawn(function()
+	while true do
+		task.wait(0.5)
+		if selectedMobName then
+			local count = getAliveCount(selectedMobName)
+			local nearest, dist = getNearestMob(selectedMobName)
+
+			aliveLabel.Text = "📊 Alive: " .. count
+			if nearest then
+				local hum = nearest:FindFirstChild("Humanoid")
+				local hp = hum and math.floor(hum.Health / hum.MaxHealth * 100) or 0
+				distLabel.Text = "📏 Dist: " .. math.floor(dist or 0)
+				hpLabel.Text = "❤️ HP: " .. hp .. "%"
+			else
+				distLabel.Text = "📏 Dist: --"
+				hpLabel.Text = "❤️ HP: --"
+			end
+		end
+	end
+end)
+
+-- ===================== AUTO ATTACK + AUTO SPAWN =====================
+task.spawn(function()
+	while true do
+		task.wait(0.2)
+		if not selectedMobName then continue end
+		if not getAutoAttack() then continue end
+
+		local char = player.Character
+		if not char then continue end
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if not hrp then continue end
+
+		local nearest, dist = getNearestMob(selectedMobName)
+		if not nearest then continue end
+
+		local mobHrp = nearest:FindFirstChild("HumanoidRootPart")
+		if not mobHrp then continue end
+
+		-- Auto spawn TP về gần mob
+		if getAutoSpawn() then
+			hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 0, 3)
+		end
+
+		-- Auto attack
+		VirtualUser:Button1Down(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
+		task.wait(0.05)
+		VirtualUser:Button1Up(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
+	end
+end)
+
+-- Init
+refreshMobs()
+print("✅ Tuanh Farm Hub đã load!")
