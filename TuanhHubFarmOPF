@@ -301,6 +301,9 @@ local function startSmeltMethod(char)
     end)
 end
 
+player.CharacterAdded:Connect(function(char)
+    if smeltMethod then task.spawn(function() startSmeltMethod(char) end) end
+end)
 
 -- ===================== AUTO SPAWN CLICK =====================
 local function clickGuiBtn(guiObj)
@@ -316,24 +319,17 @@ end
 task.spawn(function()
     while task.wait(0.2) do
         if not autoSpawnClick then continue end
-        local char = player.Character
-        local isDead = not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0
-if not isDead then continue end
-
--- Tìm nút spawn visible thật sự
-local found = false
-for _, v in ipairs(player.PlayerGui:GetDescendants()) do
-    if v:IsA("TextButton") and v.Visible then
-        local txt = string.lower(v.Text)
-        if txt == "spawn" or v.Text == "เลือก" then
-            found = true
-            clickGuiBtn(v)
-            task.wait(3) -- đợi sau khi click
-            break
+        for _, v in ipairs(player.PlayerGui:GetDescendants()) do
+            if v:IsA("TextButton") and v.Visible then
+                local txt = string.lower(v.Text)
+                if txt == "spawn" or v.Text == "เลือก" then
+                    clickGuiBtn(v)
+                    task.wait(2)
+                end
+            end
         end
     end
-end
-if not found then task.wait(0.5) end -- chờ nút xuất hiện
+end)
 
 -- ===================== AUTO ATTACK + SPAWN TP =====================
 task.spawn(function()
