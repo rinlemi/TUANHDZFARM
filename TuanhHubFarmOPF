@@ -316,6 +316,9 @@ end
 task.spawn(function()
     while task.wait(0.2) do
         if not autoSpawnClick then continue end
+        local char = player.Character
+        local isDead = not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0
+        if not isDead then continue end
         for _, v in ipairs(player.PlayerGui:GetDescendants()) do
             if v:IsA("TextButton") and v.Visible then
                 local txt = string.lower(v.Text)
