@@ -393,22 +393,55 @@ local function clickSpawnScan()
     end
 end
 
--- Hook Died: khi character chết → spam click spawn
+-- Hàm kiểm tra player đã spawn xong thật sự chưa
+-- "Spawn xong" = có HumanoidRootPart + Humanoid.Health > 0 + không ragdoll
+local function isFullyAlive()
+    local char = player.Character
+    if not char then return false end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    local hum = char:FindFirstChild("Humanoid")
+    if not hum then return false end
+    if hum.Health <= 0 then return false end
+    -- Kiểm tra thêm: nút spawn screen có còn visible không
+    -- Nếu vẫn còn nút spawn → chưa spawn xong dù character đã load
+    local ok, directBtn = pcall(function()
+        return player.PlayerGui:WaitForChild("Load", 0):WaitForChild("Frame", 0):WaitForChild("Load", 0)
+    end)
+    if ok and directBtn and directBtn.Visible then return false end
+    return true
+end
+
+-- isSpawning: biến global để scan loop và hook Died phối hợp
+local isSpawning = false
+
+-- Hook Died: khi character chết → bật cờ isSpawning, spam click đến khi spawn xong thật
 local function hookSpawnOnDied(char)
     local hum = char:WaitForChild("Humanoid", 10)
     if not hum then return end
     hum.Died:Connect(function()
-        print("[SpawnClick] Character died, bắt đầu spam spawn click...")
-        -- Spam trong 15 giây, mỗi 0.3s, dừng sớm nếu respawn
-        for i = 1, 50 do
-            task.wait(0.3)
-            -- Nếu character mới đã load → dừng
-            if player.Character and player.Character ~= char then
-                print("[SpawnClick] Character đã respawn, dừng spam")
+        if not autoSpawnClick then return end
+        isSpawning = true
+        print("[SpawnClick] Died → bắt đầu spam spawn click cho đến khi spawn xong...")
+        -- Spam tối đa 30 giây (60 lần × 0.5s), dừng khi isFullyAlive()
+        for i = 1, 60 do
+            task.wait(0.5)
+            if not autoSpawnClick then isSpawning = false; break end
+            if isFullyAlive() then
+                -- Thêm 2 giây buffer: một số game cần click thêm sau khi char load
+                task.wait(2)
+                -- Click thêm vài cái phòng game 2-step (chọn location → confirm)
+                for _ = 1, 4 do
+                    clickSpawnScan()
+                    task.wait(0.4)
+                end
+                isSpawning = false
+                print("[SpawnClick] Spawn xong thật sự, dừng spam")
                 break
             end
             clickSpawnScan()
         end
+        isSpawning = false
     end)
 end
 
@@ -417,7 +450,7 @@ player.CharacterAdded:Connect(function(char) hookSpawnOnDied(char) end)
 if player.Character then hookSpawnOnDied(player.Character) end
 
 -- Scan loop song song (safety net): chạy liên tục khi bật autoSpawnClick
--- Chỉ trigger khi player không có character (đang ở màn chọn spawn)
+-- Trigger khi: không có character, HOẶC humanoid chết, HOẶC đang trong trạng thái isSpawning
 task.spawn(function()
     while true do
         task.wait(0.4)
@@ -430,6 +463,12 @@ task.spawn(function()
         -- Nếu có character nhưng humanoid đã chết (health = 0)
         local hum = player.Character:FindFirstChild("Humanoid")
         if hum and hum.Health <= 0 then
+            clickSpawnScan()
+            continue
+        end
+        -- Safety net: isSpawning = true khi hookSpawnOnDied đang chạy
+        -- Cả 2 loop cùng click để không miss
+        if isSpawning then
             clickSpawnScan()
         end
     end
