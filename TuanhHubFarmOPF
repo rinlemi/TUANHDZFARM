@@ -1613,4 +1613,4 @@ tabs["Auto Farm"].btn.TextColor3 = C.white
 tabs["Auto Farm"].bar.Visible = true
 activeTab = "Auto Farm"
 
-print("✅ Tuanh Farm Hub V.004 loaded!")
+print("✅ Tuanh Farm Hub V.005 loaded!")
