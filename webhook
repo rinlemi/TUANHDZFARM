@@ -1,108 +1,924 @@
--- 📣 Discord Webhook: Beri tracker (Client/Executor)
+-- TUANH FARM HUB V.003
 
-local Players = game:GetService('Players')
-local HttpService = game:GetService('HttpService')
-local plr = Players.LocalPlayer
+-- ===================== KEY SYSTEM =====================
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycby0O2EauVzUBz40v3T4hnu1mbzSVETaLP2D-Ja5qx72awGR-s4gswKJDqY2bGvmTc-QPQ/exec"
 
--- 🔗 Thay webhook của bạn vào đây
-local WEBHOOK_URL = 'https://discord.com/api/webhooks/1361342230190624868/fQAmKwuKdmLnmTFTAa-iVjq_13TQEm2uL2vWQlL76GkYELucKwQJxkp880Br8-EDVf6T'
-
--- chọn hàm http phù hợp executor
-local httpRequest = (syn and syn.request)
-    or (http and http.request)
-    or http_request
-    or request
-
-if not httpRequest then
-    warn('[Webhook] Executor của bạn không hỗ trợ HTTP.')
-    return
+local function getHWID()
+    return game:GetService("RbxAnalyticsService"):GetClientId()
 end
 
-local function sendWebhook(msg)
-    local payload = HttpService:JSONEncode({ content = msg })
-    local ok, err = pcall(function()
-        httpRequest({
-            Url = WEBHOOK_URL,
-            Method = 'POST',
-            Headers = { ['Content-Type'] = 'application/json' },
-            Body = payload,
-        })
-    end)
-    if not ok then
-        warn('[Webhook] Lỗi gửi Discord: ' .. tostring(err))
+local function checkKey(key)
+    local hwid = getHWID()
+    local url  = DEPLOY_URL .. "?key=" .. key .. "&hwid=" .. hwid
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok then return false, "Khong ket noi duoc server" end
+    if res == "SUCCESS"       then return true,  "OK" end
+    if res == "HWID_MISMATCH" then return false, "Key nay da dung tren may khac!" end
+    if res == "INVALID_KEY"   then return false, "Key khong hop le!" end
+    return false, "Loi: " .. tostring(res)
+end
+
+local keyGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+keyGui.ResetOnSpawn = false
+keyGui.Name = "TuanhKeySystem"
+
+local _bg = Instance.new("Frame", keyGui)
+_bg.Size = UDim2.new(1,0,1,0)
+_bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+_bg.BackgroundTransparency = 0.4
+_bg.BorderSizePixel = 0
+
+local _box = Instance.new("Frame", keyGui)
+_box.Size = UDim2.new(0,340,0,190)
+_box.Position = UDim2.new(0.5,-170,0.5,-95)
+_box.BackgroundColor3 = Color3.fromRGB(12,12,22)
+_box.BorderSizePixel = 0
+Instance.new("UICorner", _box).CornerRadius = UDim.new(0,10)
+local _bstr = Instance.new("UIStroke", _box)
+_bstr.Color = Color3.fromRGB(120,55,255); _bstr.Thickness = 1.5
+
+local _ktitle = Instance.new("TextLabel", _box)
+_ktitle.Size = UDim2.new(1,0,0,36)
+_ktitle.BackgroundColor3 = Color3.fromRGB(120,55,255)
+_ktitle.BorderSizePixel = 0
+_ktitle.Text = "TUANH FARM HUB - KEY SYSTEM"
+_ktitle.TextColor3 = Color3.fromRGB(255,255,255)
+_ktitle.TextSize = 12
+_ktitle.Font = Enum.Font.GothamBold
+Instance.new("UICorner", _ktitle).CornerRadius = UDim.new(0,10)
+local _kflat = Instance.new("Frame", _ktitle)
+_kflat.Size = UDim2.new(1,0,0.5,0); _kflat.Position = UDim2.new(0,0,0.5,0)
+_kflat.BackgroundColor3 = Color3.fromRGB(120,55,255); _kflat.BorderSizePixel = 0
+
+local _kstatus = Instance.new("TextLabel", _box)
+_kstatus.Size = UDim2.new(1,-20,0,20); _kstatus.Position = UDim2.new(0,10,0,44)
+_kstatus.BackgroundTransparency = 1; _kstatus.Text = "Nhap key de tiep tuc..."
+_kstatus.TextColor3 = Color3.fromRGB(100,100,130); _kstatus.TextSize = 11
+_kstatus.Font = Enum.Font.Gotham; _kstatus.TextXAlignment = Enum.TextXAlignment.Center
+
+local _kinput = Instance.new("TextBox", _box)
+_kinput.Size = UDim2.new(1,-20,0,32); _kinput.Position = UDim2.new(0,10,0,72)
+_kinput.BackgroundColor3 = Color3.fromRGB(26,26,46); _kinput.BorderSizePixel = 0
+_kinput.PlaceholderText = "Nhap key cua ban..."; _kinput.Text = ""
+_kinput.TextColor3 = Color3.fromRGB(230,230,245); _kinput.PlaceholderColor3 = Color3.fromRGB(100,100,130)
+_kinput.TextSize = 12; _kinput.Font = Enum.Font.GothamBold; _kinput.ClearTextOnFocus = false
+Instance.new("UICorner", _kinput).CornerRadius = UDim.new(0,6)
+local _kis = Instance.new("UIStroke", _kinput); _kis.Color = Color3.fromRGB(120,55,255); _kis.Thickness = 1
+Instance.new("UIPadding", _kinput).PaddingLeft = UDim.new(0,8)
+
+local _kbtn = Instance.new("TextButton", _box)
+_kbtn.Size = UDim2.new(1,-20,0,32); _kbtn.Position = UDim2.new(0,10,0,114)
+_kbtn.BackgroundColor3 = Color3.fromRGB(120,55,255); _kbtn.BorderSizePixel = 0
+_kbtn.Text = "XAC NHAN KEY"; _kbtn.TextColor3 = Color3.fromRGB(255,255,255)
+_kbtn.TextSize = 12; _kbtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", _kbtn).CornerRadius = UDim.new(0,6)
+
+local _khwid = Instance.new("TextLabel", _box)
+_khwid.Size = UDim2.new(1,-20,0,16); _khwid.Position = UDim2.new(0,10,0,162)
+_khwid.BackgroundTransparency = 1; _khwid.Text = "HWID: " .. getHWID()
+_khwid.TextColor3 = Color3.fromRGB(60,60,80); _khwid.TextSize = 8
+_khwid.Font = Enum.Font.Gotham; _khwid.TextXAlignment = Enum.TextXAlignment.Center
+_khwid.TextTruncate = Enum.TextTruncate.AtEnd
+
+local _verified = false
+local function _verify()
+    local key = _kinput.Text
+    if key == "" then
+        _kstatus.Text = "Hay nhap key!"; _kstatus.TextColor3 = Color3.fromRGB(255,80,80); return
+    end
+    _kbtn.Text = "Dang kiem tra..."; _kbtn.BackgroundColor3 = Color3.fromRGB(60,30,120)
+    _kstatus.Text = "Connecting..."; _kstatus.TextColor3 = Color3.fromRGB(255,200,60)
+    local ok, msg = checkKey(key)
+    if ok then
+        _kstatus.Text = "Key hop le! Dang tai..."; _kstatus.TextColor3 = Color3.fromRGB(80,255,140)
+        task.wait(1); keyGui:Destroy(); _verified = true
+    else
+        _kstatus.Text = msg; _kstatus.TextColor3 = Color3.fromRGB(255,80,80)
+        _kbtn.Text = "XAC NHAN KEY"; _kbtn.BackgroundColor3 = Color3.fromRGB(120,55,255)
+    end
+end
+_kbtn.MouseButton1Click:Connect(_verify)
+_kinput.FocusLost:Connect(function(enter) if enter then _verify() end end)
+repeat task.wait(0.1) until _verified
+-- ===================== END KEY SYSTEM =====================
+
+local Players     = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local VIM         = game:GetService("VirtualInputManager")
+local RunService  = game:GetService("RunService")
+local TweenService= game:GetService("TweenService")
+local player      = Players.LocalPlayer
+
+-- ===================== STATE =====================
+local selectedMobs     = {}
+local autoAttack       = false
+local autoSpawnTP      = false
+local autoSpawnClick   = false
+local smeltMethod      = false
+local equippedWeapon   = nil
+
+-- ===================== LOAD CONFIG =====================
+if _G.TuanhConfig then
+    local cfg = _G.TuanhConfig
+    autoAttack     = cfg.autoAttack     or false
+    autoSpawnTP    = cfg.autoSpawnTP    or false
+    autoSpawnClick = cfg.autoSpawnClick or false
+    smeltMethod    = cfg.smeltMethod    or false
+    equippedWeapon = cfg.equippedWeapon or nil
+    if cfg.selectedMobs then
+        for _, name in ipairs(cfg.selectedMobs) do selectedMobs[name] = true end
     end
 end
 
--- tìm label Beri
-local function waitForBeriLabel(timeout)
-    local pg = plr:WaitForChild('PlayerGui')
-    local t0 = os.clock()
-    while os.clock() - t0 < (timeout or 20) do
-        local ok, label = pcall(function()
-            return pg:FindFirstChild('Menu', true)
-                and pg.Menu.Frame.C.Frame.A.Beri:FindFirstChild('BeriAmount')
-        end)
-        if ok and label and label:IsA('TextLabel') then
-            return label
+-- ===================== HELPERS =====================
+local function pressKey(key)
+    VIM:SendKeyEvent(true, key, false, game); task.wait(0.05)
+    VIM:SendKeyEvent(false, key, false, game)
+end
+
+local function getMobs()
+    local seen, list = {}, {}
+    for _, mob in ipairs(workspace:WaitForChild("Alive"):GetChildren()) do
+        local hum = mob:FindFirstChild("Humanoid")
+        if hum and hum.Health > 0 and not seen[mob.Name] then
+            seen[mob.Name] = true; table.insert(list, mob.Name)
         end
-        task.wait(0.2)
     end
-    return nil
+    table.sort(list); return list
 end
 
--- lọc chuỗi -> số
-local function toNumber(txt)
-    local clean = tostring(txt or ''):gsub('[^%d%-]', '')
-    return tonumber(clean)
+local function getAliveCount(name)
+    local count = 0
+    for _, mob in ipairs(workspace.Alive:GetChildren()) do
+        local hum = mob:FindFirstChild("Humanoid")
+        if mob.Name == name and hum and hum.Health > 0 then count += 1 end
+    end
+    return count
+end
+
+local function getNearestMob()
+    local char = player.Character
+    if not char then return nil, nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil, nil end
+    local nearest, dist = nil, math.huge
+    for _, mob in ipairs(workspace.Alive:GetChildren()) do
+        local hum    = mob:FindFirstChild("Humanoid")
+        local mobHrp = mob:FindFirstChild("HumanoidRootPart")
+        if selectedMobs[mob.Name] and hum and hum.Health > 0 and mobHrp then
+            local d = (hrp.Position - mobHrp.Position).Magnitude
+            if d < dist then dist = d; nearest = mob end
+        end
+    end
+    return nearest, dist
+end
+
+local function countSelected()
+    local c = 0; for _ in pairs(selectedMobs) do c += 1 end; return c
+end
+
+-- ===================== WEAPON =====================
+local function getWeapons()
+    local list = {}
+    local bp = player:FindFirstChild("Backpack")
+    if bp then for _, t in ipairs(bp:GetChildren()) do if t:IsA("Tool") then table.insert(list, t.Name) end end end
+    local char = player.Character
+    if char then for _, t in ipairs(char:GetChildren()) do if t:IsA("Tool") then table.insert(list, t.Name) end end end
+    table.sort(list); return list
+end
+
+local function equipWeapon(name)
+    if not name then return end
+    local char = player.Character; if not char then return end
+    local bp = player:FindFirstChild("Backpack"); if not bp then return end
+    local tool = bp:FindFirstChild(name); if not tool then return end
+    local hum = char:FindFirstChild("Humanoid"); if hum then hum:EquipTool(tool) end
+end
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(3); if equippedWeapon then equipWeapon(equippedWeapon) end
+end)
+
+-- ===================== SMELT METHOD =====================
+local smeltLoop = 0
+local function startSmeltMethod(char)
+    smeltLoop += 1; local myLoop = smeltLoop
+    local hum = char:WaitForChild("Humanoid")
+    task.wait(3.5); if myLoop ~= smeltLoop then return end
+    pressKey(Enum.KeyCode.Z); task.wait(0.5); pressKey(Enum.KeyCode.X)
+    task.spawn(function()
+        while hum.Health > 0 and myLoop == smeltLoop and smeltMethod do
+            pressKey(Enum.KeyCode.C); task.wait(0.1)
+        end
+    end)
+end
+
+player.CharacterAdded:Connect(function(char)
+    if smeltMethod then task.spawn(function() startSmeltMethod(char) end) end
+end)
+
+-- ===================== AUTO SPAWN CLICK =====================
+local function clickGuiBtn(guiObj)
+    local pos = guiObj.AbsolutePosition; local size = guiObj.AbsoluteSize
+    local x = pos.X + size.X/2; local y = pos.Y + size.Y/2 + 50
+    VIM:SendMouseButtonEvent(x, y, 0, true, game, 0); task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
 end
 
 task.spawn(function()
-    local label = waitForBeriLabel(20)
-    if not label then
-        warn('[Webhook] Không tìm thấy label BeriAmount.')
-        return
-    end
-
-    -- báo Online
-    local lastText = label.Text
-    local lastVal = toNumber(lastText) or 0
-    sendWebhook(
-        ('✅ 👤 Name: **%s**\n💰 Beri ban đầu: **%s**\n📡 Trạng thái: **Online**'):format(
-            plr.Name,
-            lastText
-        )
-    )
-
-    -- chỉ báo theo chu kỳ 1 phút
-    while true do
-        task.wait(300)
-        local curText = label.Text
-        local curVal = toNumber(curText) or lastVal
-        local diff = curVal - lastVal
-        sendWebhook(
-            ('⏱️ 1 phút\n👤 Name: **%s**\n💰 Beri hiện tại: **%s**\n📈 Tăng/Giảm: **%+d**\n📡 Trạng thái: **Online**'):format(
-                plr.Name,
-                curText,
-                diff
-            )
-        )
-        lastText, lastVal = curText, curVal
+    while task.wait(0.2) do
+        if not autoSpawnClick then continue end
+        for _, v in ipairs(player.PlayerGui:GetDescendants()) do
+            if v:IsA("TextButton") and v.Visible then
+                local txt = string.lower(v.Text)
+                if txt == "spawn" or v.Text == "เลือก" then clickGuiBtn(v); task.wait(2) end
+            end
+        end
     end
 end)
 
--- khi thoát game → báo Offline
-plr.OnTeleport:Connect(function()
-    sendWebhook(
-        ('❌ 👤 Name: **%s**\n📡 Trạng thái: **Offline**'):format(
-            plr.Name
-        )
-    )
+-- ===================== AUTO ATTACK =====================
+task.spawn(function()
+    while task.wait(0.03) do
+        if countSelected() == 0 or not autoAttack then continue end
+        local char = player.Character; if not char then continue end
+        local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then continue end
+        local nearest, dist = getNearestMob(); if not nearest then continue end
+        local mobHrp = nearest:FindFirstChild("HumanoidRootPart"); if not mobHrp then continue end
+        if autoSpawnTP then hrp.CFrame = mobHrp.CFrame * CFrame.new(0, 0, 2) end
+        VirtualUser:Button1Down(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
+        task.wait(0.05)
+        VirtualUser:Button1Up(Vector2.new(500, 500), workspace.CurrentCamera.CFrame)
+    end
 end)
 
-game:BindToClose(function()
-    sendWebhook(
-        ('❌ 👤 Name: **%s**\n📡 Trạng thái: **Offline**'):format(
-            plr.Name
-        )
-    )
-end)
+-- ===================== GUI =====================
+local oldGui = game:GetService("CoreGui"):FindFirstChild("TuanhFarmHub_V3")
+if oldGui then oldGui:Destroy() end
+
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.ResetOnSpawn = false; gui.Name = "TuanhFarmHub_V3"
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local C = {
+    bg      = Color3.fromRGB(12,12,22),   panel  = Color3.fromRGB(18,18,34),
+    card    = Color3.fromRGB(26,26,46),   sidebar= Color3.fromRGB(15,15,28),
+    accent  = Color3.fromRGB(120,55,255), green  = Color3.fromRGB(80,255,140),
+    cyan    = Color3.fromRGB(0,200,255),  yellow = Color3.fromRGB(255,200,60),
+    red     = Color3.fromRGB(255,80,80),  white  = Color3.fromRGB(230,230,245),
+    muted   = Color3.fromRGB(100,100,130),selBg  = Color3.fromRGB(50,18,140),
+    border  = Color3.fromRGB(40,35,80),
+}
+
+local function corner(r, obj) local c = Instance.new("UICorner", obj); c.CornerRadius = UDim.new(0,r); return c end
+local function stroke(obj, color, thick) local s = Instance.new("UIStroke", obj); s.Color = color or C.border; s.Thickness = thick or 1; return s end
+local function newLabel(parent, text, size, color, xAlign)
+    local l = Instance.new("TextLabel", parent)
+    l.BackgroundTransparency = 1; l.Text = text; l.TextColor3 = color or C.white
+    l.TextSize = size or 12; l.Font = Enum.Font.GothamBold
+    l.TextXAlignment = xAlign or Enum.TextXAlignment.Left; return l
+end
+
+local TOTAL_W = 660; local TOTAL_H = 420; local SIDEBAR_W = 180
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0,TOTAL_W,0,TOTAL_H)
+main.Position = UDim2.new(0.5,-TOTAL_W/2,0.5,-TOTAL_H/2)
+main.BackgroundColor3 = C.bg; main.BorderSizePixel = 0
+main.Active = true; main.Draggable = true
+corner(10, main); stroke(main, C.accent, 1.5)
+
+local titleBar = Instance.new("Frame", main)
+titleBar.Size = UDim2.new(1,0,0,34); titleBar.BackgroundColor3 = C.accent; titleBar.BorderSizePixel = 0
+corner(10, titleBar)
+local tbFlat = Instance.new("Frame", titleBar)
+tbFlat.Size = UDim2.new(1,0,0.5,0); tbFlat.Position = UDim2.new(0,0,0.5,0)
+tbFlat.BackgroundColor3 = C.accent; tbFlat.BorderSizePixel = 0
+local tGrad = Instance.new("UIGradient", titleBar)
+tGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(145,65,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(75,20,200))})
+tGrad.Rotation = 90
+local titleTxt = newLabel(titleBar, "TUANH FARM HUB", 13, Color3.fromRGB(255,255,255))
+titleTxt.Size = UDim2.new(1,-90,1,0); titleTxt.Position = UDim2.new(0,12,0,0)
+local freeTag = Instance.new("Frame", titleBar)
+freeTag.Size = UDim2.new(0,72,0,18); freeTag.Position = UDim2.new(1,-130,0.5,-9)
+freeTag.BackgroundColor3 = Color3.fromRGB(255,200,0); freeTag.BorderSizePixel = 0; corner(4, freeTag)
+local freeTxt = newLabel(freeTag, "FREEMIUM", 9, Color3.fromRGB(20,20,20), Enum.TextXAlignment.Center)
+freeTxt.Size = UDim2.new(1,0,1,0)
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0,26,0,20); closeBtn.Position = UDim2.new(1,-32,0.5,-10)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); closeBtn.BorderSizePixel = 0
+closeBtn.Text = "X"; closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.TextSize = 11; closeBtn.Font = Enum.Font.GothamBold; corner(5, closeBtn)
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+local sidebar = Instance.new("Frame", main)
+sidebar.Size = UDim2.new(0,SIDEBAR_W,1,-34); sidebar.Position = UDim2.new(0,0,0,34)
+sidebar.BackgroundColor3 = C.sidebar; sidebar.BorderSizePixel = 0
+
+local divider = Instance.new("Frame", main)
+divider.Size = UDim2.new(0,1,1,-34); divider.Position = UDim2.new(0,SIDEBAR_W,0,34)
+divider.BackgroundColor3 = C.border; divider.BorderSizePixel = 0
+
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(0,TOTAL_W-SIDEBAR_W-1,1,-34); content.Position = UDim2.new(0,SIDEBAR_W+1,0,34)
+content.BackgroundColor3 = C.panel; content.BorderSizePixel = 0; corner(10, content)
+local cFlat = Instance.new("Frame", content)
+cFlat.Size = UDim2.new(0,10,1,0); cFlat.BackgroundColor3 = C.panel; cFlat.BorderSizePixel = 0
+
+-- ===================== TAB SYSTEM =====================
+local tabs = {}
+local tabLayout = Instance.new("UIListLayout", sidebar)
+tabLayout.Padding = UDim.new(0,4); tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local tabPad = Instance.new("UIPadding", sidebar)
+tabPad.PaddingTop = UDim.new(0,12); tabPad.PaddingLeft = UDim.new(0,10); tabPad.PaddingRight = UDim.new(0,10)
+
+local function newPage()
+    local p = Instance.new("Frame", content)
+    p.Size = UDim2.new(1,-12,1,-10); p.Position = UDim2.new(0,6,0,5)
+    p.BackgroundTransparency = 1; p.Visible = false; return p
+end
+
+local function makeTab(name, icon, order)
+    local page = newPage()
+    local btn = Instance.new("TextButton", sidebar)
+    btn.Size = UDim2.new(1,0,0,36); btn.BackgroundColor3 = C.card; btn.BorderSizePixel = 0
+    btn.Text = icon .. "  " .. name; btn.TextColor3 = C.muted; btn.TextSize = 12
+    btn.Font = Enum.Font.GothamBold; btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.LayoutOrder = order; corner(7, btn)
+    Instance.new("UIPadding", btn).PaddingLeft = UDim.new(0,10)
+    local bar = Instance.new("Frame", btn)
+    bar.Size = UDim2.new(0,3,0.7,0); bar.Position = UDim2.new(0,-10,0.15,0)
+    bar.BackgroundColor3 = C.accent; bar.BorderSizePixel = 0; bar.Visible = false; corner(2, bar)
+    tabs[name] = {btn=btn, page=page, bar=bar}
+    btn.MouseButton1Click:Connect(function()
+        for _, t in pairs(tabs) do
+            t.page.Visible = false; t.btn.BackgroundColor3 = C.card
+            t.btn.TextColor3 = C.muted; t.bar.Visible = false
+        end
+        page.Visible = true; btn.BackgroundColor3 = C.selBg
+        btn.TextColor3 = C.white; bar.Visible = true
+    end)
+    return page
+end
+
+local pageAutoFarm = makeTab("Auto Farm",   "⚔", 1)
+local pageMethod   = makeTab("Method Farm", "⚙", 2)
+local pageTeleport = makeTab("Teleport",    "TP", 3)
+local pageSetting  = makeTab("Setting",     "=",  4)
+
+local verLbl = newLabel(sidebar, "V.003", 9, C.muted, Enum.TextXAlignment.Center)
+verLbl.Size = UDim2.new(1,0,0,16); verLbl.Position = UDim2.new(0,0,1,-20)
+
+-- ===================== PAGE: AUTO FARM =====================
+do
+    local page = pageAutoFarm
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted); l.Size = UDim2.new(1,0,0,14); l.Position = UDim2.new(0,2,0,y)
+    end
+
+    secLabel("MOB LIST", 0)
+    local searchBox = Instance.new("TextBox", page)
+    searchBox.Size = UDim2.new(0.62,0,0,26); searchBox.Position = UDim2.new(0,0,0,16)
+    searchBox.BackgroundColor3 = C.card; searchBox.BorderSizePixel = 0
+    searchBox.PlaceholderText = "Search..."; searchBox.Text = ""
+    searchBox.TextColor3 = C.white; searchBox.PlaceholderColor3 = C.muted
+    searchBox.TextSize = 11; searchBox.Font = Enum.Font.Gotham; searchBox.ClearTextOnFocus = false
+    corner(6, searchBox); stroke(searchBox, C.accent, 1)
+    Instance.new("UIPadding", searchBox).PaddingLeft = UDim.new(0,7)
+
+    local reloadBtn = Instance.new("TextButton", page)
+    reloadBtn.Size = UDim2.new(0.35,0,0,26); reloadBtn.Position = UDim2.new(0.65,0,0,16)
+    reloadBtn.BackgroundColor3 = C.accent; reloadBtn.BorderSizePixel = 0
+    reloadBtn.Text = "Reload"; reloadBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    reloadBtn.TextSize = 10; reloadBtn.Font = Enum.Font.GothamBold; corner(6, reloadBtn)
+
+    local scroll = Instance.new("ScrollingFrame", page)
+    scroll.Size = UDim2.new(1,0,0,120); scroll.Position = UDim2.new(0,0,0,46)
+    scroll.BackgroundColor3 = C.card; scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = C.accent
+    scroll.CanvasSize = UDim2.new(0,0,0,0); corner(7, scroll); stroke(scroll, C.border, 1)
+    local ll = Instance.new("UIListLayout", scroll); ll.Padding = UDim.new(0,2)
+    local lp = Instance.new("UIPadding", scroll)
+    lp.PaddingTop=UDim.new(0,4); lp.PaddingLeft=UDim.new(0,4); lp.PaddingRight=UDim.new(0,4); lp.PaddingBottom=UDim.new(0,4)
+
+    secLabel("TARGET INFO", 172)
+    local infoFrame = Instance.new("Frame", page)
+    infoFrame.Size = UDim2.new(1,0,0,68); infoFrame.Position = UDim2.new(0,0,0,188)
+    infoFrame.BackgroundColor3 = C.card; infoFrame.BorderSizePixel = 0
+    corner(7, infoFrame); stroke(infoFrame, C.border, 1)
+    local ip = Instance.new("UIPadding", infoFrame); ip.PaddingLeft=UDim.new(0,8); ip.PaddingTop=UDim.new(0,6)
+    local selLabel = newLabel(infoFrame, "Selected: --", 11, C.cyan);   selLabel.Size=UDim2.new(1,-8,0,18)
+    local alvLabel = newLabel(infoFrame, "Alive: --",    11, C.yellow); alvLabel.Size=UDim2.new(0.5,0,0,18); alvLabel.Position=UDim2.new(0,0,0,22)
+    local dstLabel = newLabel(infoFrame, "Dist: --",     11, C.green);  dstLabel.Size=UDim2.new(0.5,0,0,18); dstLabel.Position=UDim2.new(0.5,0,0,22)
+    local hpLabel  = newLabel(infoFrame, "HP: --",       11, C.red);    hpLabel.Size=UDim2.new(1,-8,0,18);   hpLabel.Position=UDim2.new(0,0,0,46)
+
+    secLabel("CONTROLS", 262)
+    local function makeToggle(text, yPos, onColor, initState)
+        local frame = Instance.new("Frame", page)
+        frame.Size = UDim2.new(1,0,0,28); frame.Position = UDim2.new(0,0,0,yPos)
+        frame.BackgroundColor3 = C.card; frame.BorderSizePixel = 0
+        corner(6, frame); stroke(frame, C.border, 1)
+        local pill = Instance.new("Frame", frame)
+        pill.Size = UDim2.new(0,28,0,14); pill.Position = UDim2.new(1,-34,0.5,-7)
+        pill.BackgroundColor3 = C.muted; pill.BorderSizePixel = 0; corner(7, pill)
+        local dot = Instance.new("Frame", pill)
+        dot.Size = UDim2.new(0,12,0,12); dot.Position = UDim2.new(0,1,0,1)
+        dot.BackgroundColor3 = Color3.fromRGB(180,180,200); dot.BorderSizePixel = 0; corner(6, dot)
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(1,-40,1,0); btn.BackgroundTransparency = 1
+        btn.Text = text; btn.TextColor3 = C.muted; btn.TextSize = 11
+        btn.Font = Enum.Font.GothamBold; btn.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UIPadding", btn).PaddingLeft = UDim.new(0,10)
+        local state = false
+        local function set(v)
+            state = v
+            if v then
+                frame.BackgroundColor3 = Color3.fromRGB(28,14,65); pill.BackgroundColor3 = onColor
+                dot.Position = UDim2.new(0,15,0,1); dot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                btn.TextColor3 = onColor
+            else
+                frame.BackgroundColor3 = C.card; pill.BackgroundColor3 = C.muted
+                dot.Position = UDim2.new(0,1,0,1); dot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+                btn.TextColor3 = C.muted
+            end
+        end
+        btn.MouseButton1Click:Connect(function() set(not state) end)
+        if initState then set(true) end
+        return function() return state end, set
+    end
+
+    local getAA,  setAA  = makeToggle("Auto Attack",      278, C.green,  autoAttack)
+    local getATP, setATP = makeToggle("Auto Spawn TP",    310, C.cyan,   autoSpawnTP)
+    local getASC, setASC = makeToggle("Auto Spawn Click", 342, C.yellow, autoSpawnClick)
+
+    RunService.Heartbeat:Connect(function()
+        autoAttack = getAA(); autoSpawnTP = getATP(); autoSpawnClick = getASC()
+    end)
+
+    local statusLbl = newLabel(page, "Idle", 10, C.muted)
+    statusLbl.Size = UDim2.new(1,0,0,14); statusLbl.Position = UDim2.new(0,2,1,-16)
+
+    local allMobs = {}
+    local function buildList(filter)
+        for _, v in ipairs(scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+        for _, name in ipairs(allMobs) do
+            if filter == "" or name:lower():find(filter:lower(),1,true) then
+                local row = Instance.new("Frame", scroll)
+                row.Size = UDim2.new(1,0,0,26); row.BackgroundColor3 = selectedMobs[name] and C.selBg or C.card
+                row.BorderSizePixel = 0; corner(5, row)
+                local bar2 = Instance.new("Frame", row)
+                bar2.Size = UDim2.new(0,3,0.7,0); bar2.Position = UDim2.new(0,2,0.15,0)
+                bar2.BackgroundColor3 = C.accent; bar2.BorderSizePixel = 0
+                bar2.Visible = selectedMobs[name] == true; corner(2, bar2)
+                local rbtn = Instance.new("TextButton", row)
+                rbtn.Size = UDim2.new(1,0,1,0); rbtn.BackgroundTransparency = 1
+                rbtn.Text = name; rbtn.TextColor3 = selectedMobs[name] and C.white or C.muted
+                rbtn.TextSize = 10; rbtn.Font = Enum.Font.GothamBold
+                rbtn.TextXAlignment = Enum.TextXAlignment.Left
+                Instance.new("UIPadding", rbtn).PaddingLeft = UDim.new(0,10)
+                rbtn.MouseButton1Click:Connect(function()
+                    if selectedMobs[name] then
+                        selectedMobs[name] = nil; row.BackgroundColor3 = C.card
+                        rbtn.TextColor3 = C.muted; bar2.Visible = false
+                    else
+                        selectedMobs[name] = true; row.BackgroundColor3 = C.selBg
+                        rbtn.TextColor3 = C.white; bar2.Visible = true
+                    end
+                    local cnt = countSelected()
+                    if cnt == 0 then selLabel.Text = "Selected: --"; statusLbl.Text = "Idle"; statusLbl.TextColor3 = C.muted
+                    elseif cnt == 1 then local n = next(selectedMobs); selLabel.Text = "Selected: "..n; statusLbl.Text = "Farming "..n; statusLbl.TextColor3 = C.green
+                    else selLabel.Text = "Selected: "..cnt.." mobs"; statusLbl.Text = "Multi-farm ("..cnt..")"; statusLbl.TextColor3 = C.green end
+                end)
+            end
+        end
+        scroll.CanvasSize = UDim2.new(0,0,0, ll.AbsoluteContentSize.Y + 8)
+        local cnt = countSelected()
+        if cnt == 1 then local n = next(selectedMobs); selLabel.Text = "Selected: "..n; statusLbl.Text = "Farming "..n; statusLbl.TextColor3 = C.green
+        elseif cnt > 1 then selLabel.Text = "Selected: "..cnt.." mobs"; statusLbl.Text = "Multi-farm ("..cnt..")"; statusLbl.TextColor3 = C.green end
+    end
+
+    local function refreshMobs() allMobs = getMobs(); buildList(searchBox.Text) end
+    reloadBtn.MouseButton1Click:Connect(function() reloadBtn.Text = "..."; refreshMobs(); task.delay(0.4, function() reloadBtn.Text = "Reload" end) end)
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function() buildList(searchBox.Text) end)
+    workspace.Alive.ChildAdded:Connect(function() task.wait(0.5); refreshMobs() end)
+    workspace.Alive.ChildRemoved:Connect(function() task.wait(0.5); refreshMobs() end)
+
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+            if countSelected() > 0 then
+                local nearest, dist = getNearestMob()
+                local total = 0; for n in pairs(selectedMobs) do total += getAliveCount(n) end
+                alvLabel.Text = "Alive: " .. total
+                if nearest then
+                    local hum = nearest:FindFirstChild("Humanoid")
+                    local hp = hum and math.floor(hum.Health/hum.MaxHealth*100) or 0
+                    dstLabel.Text = "Dist: " .. math.floor(dist or 0)
+                    hpLabel.Text = "HP: " .. hp .. "%"
+                else dstLabel.Text = "Dist: --"; hpLabel.Text = "HP: --" end
+            else alvLabel.Text = "Alive: --"; dstLabel.Text = "Dist: --"; hpLabel.Text = "HP: --" end
+        end
+    end)
+    refreshMobs()
+end
+
+-- ===================== PAGE: METHOD FARM =====================
+do
+    local page = pageMethod
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted); l.Size = UDim2.new(1,0,0,14); l.Position = UDim2.new(0,2,0,y)
+    end
+
+    -- Smelt toggle
+    secLabel("SMELT METHOD", 0)
+    local smeltFrame = Instance.new("Frame", page)
+    smeltFrame.Size = UDim2.new(1,0,0,34); smeltFrame.Position = UDim2.new(0,0,0,16)
+    smeltFrame.BackgroundColor3 = C.card; smeltFrame.BorderSizePixel = 0
+    corner(7, smeltFrame); stroke(smeltFrame, C.border, 1)
+    local sPill = Instance.new("Frame", smeltFrame)
+    sPill.Size = UDim2.new(0,32,0,16); sPill.Position = UDim2.new(1,-38,0.5,-8)
+    sPill.BackgroundColor3 = C.muted; sPill.BorderSizePixel = 0; corner(8, sPill)
+    local sDot = Instance.new("Frame", sPill)
+    sDot.Size = UDim2.new(0,14,0,14); sDot.Position = UDim2.new(0,1,0,1)
+    sDot.BackgroundColor3 = Color3.fromRGB(180,180,200); sDot.BorderSizePixel = 0; corner(7, sDot)
+    local sBtn = Instance.new("TextButton", smeltFrame)
+    sBtn.Size = UDim2.new(1,-46,1,0); sBtn.BackgroundTransparency = 1
+    sBtn.Text = "Smelt Method Farm"; sBtn.TextColor3 = C.muted
+    sBtn.TextSize = 12; sBtn.Font = Enum.Font.GothamBold; sBtn.TextXAlignment = Enum.TextXAlignment.Left
+    Instance.new("UIPadding", sBtn).PaddingLeft = UDim.new(0,12)
+    local function setSmelt(v)
+        smeltMethod = v
+        if v then
+            smeltFrame.BackgroundColor3 = Color3.fromRGB(28,14,65); sPill.BackgroundColor3 = C.yellow
+            sDot.Position = UDim2.new(0,17,0,1); sDot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            sBtn.TextColor3 = C.yellow
+            local char = player.Character
+            if char then task.spawn(function() startSmeltMethod(char) end) end
+        else
+            smeltFrame.BackgroundColor3 = C.card; sPill.BackgroundColor3 = C.muted
+            sDot.Position = UDim2.new(0,1,0,1); sDot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+            sBtn.TextColor3 = C.muted; smeltLoop += 1
+        end
+    end
+    sBtn.MouseButton1Click:Connect(function() setSmelt(not smeltMethod) end)
+    if smeltMethod then setSmelt(true) end
+
+    -- Auto Skill section
+    secLabel("AUTO SKILL (SPAM)", 58)
+
+    local skillKeys = {
+        {label = "Skill Z", key = Enum.KeyCode.Z, color = C.cyan},
+        {label = "Skill X", key = Enum.KeyCode.X, color = C.green},
+        {label = "Skill C", key = Enum.KeyCode.C, color = C.yellow},
+        {label = "Skill E", key = Enum.KeyCode.E, color = Color3.fromRGB(255,140,60)},
+        {label = "Skill R", key = Enum.KeyCode.R, color = Color3.fromRGB(220,80,255)},
+    }
+
+    local skillStates = {}
+    local skillLoops  = {}
+
+    for i, sk in ipairs(skillKeys) do
+        local yPos = 74 + (i-1) * 32
+        local frame = Instance.new("Frame", page)
+        frame.Size = UDim2.new(1,0,0,28); frame.Position = UDim2.new(0,0,0,yPos)
+        frame.BackgroundColor3 = C.card; frame.BorderSizePixel = 0
+        corner(6, frame); stroke(frame, C.border, 1)
+
+        local pill = Instance.new("Frame", frame)
+        pill.Size = UDim2.new(0,28,0,14); pill.Position = UDim2.new(1,-34,0.5,-7)
+        pill.BackgroundColor3 = C.muted; pill.BorderSizePixel = 0; corner(7, pill)
+        local dot = Instance.new("Frame", pill)
+        dot.Size = UDim2.new(0,12,0,12); dot.Position = UDim2.new(0,1,0,1)
+        dot.BackgroundColor3 = Color3.fromRGB(180,180,200); dot.BorderSizePixel = 0; corner(6, dot)
+
+        local btn = Instance.new("TextButton", frame)
+        btn.Size = UDim2.new(1,-40,1,0); btn.BackgroundTransparency = 1
+        btn.Text = sk.label; btn.TextColor3 = C.muted; btn.TextSize = 11
+        btn.Font = Enum.Font.GothamBold; btn.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UIPadding", btn).PaddingLeft = UDim.new(0,10)
+
+        skillStates[i] = false
+        skillLoops[i]  = 0
+
+        local idx = i
+        local function set(v)
+            skillStates[idx] = v
+            if v then
+                frame.BackgroundColor3 = Color3.fromRGB(28,14,65)
+                pill.BackgroundColor3 = sk.color
+                dot.Position = UDim2.new(0,15,0,1); dot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                btn.TextColor3 = sk.color
+                skillLoops[idx] += 1
+                local myLoop = skillLoops[idx]
+                task.spawn(function()
+                    while skillStates[idx] and myLoop == skillLoops[idx] do
+                        pressKey(sk.key); task.wait(0.1)
+                    end
+                end)
+            else
+                frame.BackgroundColor3 = C.card; pill.BackgroundColor3 = C.muted
+                dot.Position = UDim2.new(0,1,0,1); dot.BackgroundColor3 = Color3.fromRGB(180,180,200)
+                btn.TextColor3 = C.muted; skillLoops[idx] += 1
+            end
+        end
+        btn.MouseButton1Click:Connect(function() set(not skillStates[idx]) end)
+    end
+
+    -- Weapon selector
+    secLabel("WEAPON", 250)
+    local weaponDisplay = Instance.new("TextButton", page)
+    weaponDisplay.Size = UDim2.new(1,-68,0,30); weaponDisplay.Position = UDim2.new(0,0,0,266)
+    weaponDisplay.BackgroundColor3 = C.card; weaponDisplay.BorderSizePixel = 0
+    weaponDisplay.Text = equippedWeapon and ("Weapon: "..equippedWeapon.."  v") or "None selected  v"
+    weaponDisplay.TextColor3 = equippedWeapon and C.white or C.muted
+    weaponDisplay.TextSize = 11; weaponDisplay.Font = Enum.Font.GothamBold
+    weaponDisplay.TextXAlignment = Enum.TextXAlignment.Left
+    corner(6, weaponDisplay); stroke(weaponDisplay, C.accent, 1)
+    Instance.new("UIPadding", weaponDisplay).PaddingLeft = UDim.new(0,10)
+
+    local weaponDropdown = Instance.new("Frame", page)
+    weaponDropdown.Size = UDim2.new(1,0,0,0); weaponDropdown.Position = UDim2.new(0,0,0,298)
+    weaponDropdown.BackgroundColor3 = C.selBg; weaponDropdown.BorderSizePixel = 0
+    weaponDropdown.Visible = false; weaponDropdown.ClipsDescendants = true
+    corner(6, weaponDropdown); stroke(weaponDropdown, C.accent, 1)
+    local wScroll = Instance.new("ScrollingFrame", weaponDropdown)
+    wScroll.Size = UDim2.new(1,0,1,0); wScroll.BackgroundTransparency = 1
+    wScroll.BorderSizePixel = 0; wScroll.ScrollBarThickness = 3; wScroll.ScrollBarImageColor3 = C.accent
+    wScroll.CanvasSize = UDim2.new(0,0,0,0)
+    local wll = Instance.new("UIListLayout", wScroll); wll.Padding = UDim.new(0,2)
+    local wlp = Instance.new("UIPadding", wScroll)
+    wlp.PaddingTop=UDim.new(0,4); wlp.PaddingLeft=UDim.new(0,4); wlp.PaddingRight=UDim.new(0,4); wlp.PaddingBottom=UDim.new(0,4)
+
+    local dropOpen = false
+    local function buildWeaponList()
+        for _, v in ipairs(wScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+        local weapons = getWeapons(); table.insert(weapons, 1, "(None)")
+        for _, wname in ipairs(weapons) do
+            local wb = Instance.new("TextButton", wScroll)
+            wb.Size = UDim2.new(1,0,0,24)
+            wb.BackgroundColor3 = (equippedWeapon == wname) and C.accent or Color3.fromRGB(30,20,60)
+            wb.BorderSizePixel = 0; wb.Text = "  " .. wname; wb.TextColor3 = C.white
+            wb.TextSize = 10; wb.Font = Enum.Font.GothamBold; wb.TextXAlignment = Enum.TextXAlignment.Left
+            corner(4, wb)
+            wb.MouseButton1Click:Connect(function()
+                if wname == "(None)" then
+                    equippedWeapon = nil; weaponDisplay.Text = "None selected  v"; weaponDisplay.TextColor3 = C.muted
+                else
+                    equippedWeapon = wname; weaponDisplay.Text = "Weapon: "..wname.."  v"
+                    weaponDisplay.TextColor3 = C.white; equipWeapon(wname)
+                end
+                dropOpen = false; weaponDropdown.Visible = false; buildWeaponList()
+            end)
+        end
+        wScroll.CanvasSize = UDim2.new(0,0,0, wll.AbsoluteContentSize.Y + 8)
+        weaponDropdown.Size = UDim2.new(1,0,0, math.min(120, wll.AbsoluteContentSize.Y + 10))
+    end
+    weaponDisplay.MouseButton1Click:Connect(function()
+        dropOpen = not dropOpen
+        if dropOpen then buildWeaponList(); weaponDropdown.Visible = true
+        else weaponDropdown.Visible = false end
+    end)
+    local wReload = Instance.new("TextButton", page)
+    wReload.Size = UDim2.new(0,60,0,30); wReload.Position = UDim2.new(1,-64,0,266)
+    wReload.BackgroundColor3 = C.accent; wReload.BorderSizePixel = 0
+    wReload.Text = "Reload"; wReload.TextColor3 = Color3.fromRGB(255,255,255)
+    wReload.TextSize = 10; wReload.Font = Enum.Font.GothamBold; corner(5, wReload)
+    wReload.MouseButton1Click:Connect(function() buildWeaponList() end)
+    if equippedWeapon then task.delay(4, function() equipWeapon(equippedWeapon) end) end
+end
+
+-- ===================== PAGE: TELEPORT =====================
+do
+    local page = pageTeleport
+
+    local locations = {
+        {name = "Sam Island",          pos = Vector3.new(-1281.50, 219.50, -1355.40)},
+        {name = "Cave Island",         pos = Vector3.new(-130.49, 217.50, -803.63)},
+        {name = "Sand Island",         pos = Vector3.new(4.90, 217.50, -253.72)},
+        {name = "Cave Demon Island",   pos = Vector3.new(2057.88, 491.57, -710.08)},
+        {name = "Cooker Island",       pos = Vector3.new(1935.53, 219.12, 624.92)},
+        {name = "Island",              pos = Vector3.new(3200.91, 363.87, 1656.79)},
+        {name = "Bar Island",          pos = Vector3.new(1510.47, 257.50, 2107.28)},
+        {name = "Anna Island",         pos = Vector3.new(1104.84, 224.48, 3309.76)},
+        {name = "Crocodile Island",    pos = Vector3.new(613.63, 413.34, 5062.39)},
+        {name = "Small Snow",          pos = Vector3.new(-2045.68, 299.77, 3408.32)},
+        {name = "Rayleigh Island",     pos = Vector3.new(-1037.89, 4013.46, 10146.07)},
+        {name = "Vokun Island",        pos = Vector3.new(4897.70, 539.82, 5125.11)},
+        {name = "Jungle Island",       pos = Vector3.new(-6018.12, 409.00, 22.71)},
+        {name = "Marin Island",        pos = Vector3.new(-2981.21, 1113.81, -4255.74)},
+        {name = "Purple Island",       pos = Vector3.new(-5265.23, 529.01, -7842.21)},
+        {name = "Small Desert Island", pos = Vector3.new(960.25, 288.26, -3211.81)},
+        {name = "Boss Island",         pos = Vector3.new(4856.36, 583.45, -7150.02)},
+        {name = "Big Snow",            pos = Vector3.new(6378.64, 543.45, -1330.23)},
+        {name = "Jung Island",         pos = Vector3.new(-10757.76, 226.18, -2886.13)},
+        {name = "??? Island",          pos = Vector3.new(-11522.04, 217.43, 5992.07)},
+    }
+
+    local selectedIndex = nil
+
+    -- Section label
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted); l.Size = UDim2.new(1,0,0,14); l.Position = UDim2.new(0,2,0,y)
+    end
+
+    secLabel("CHON DIA DIEM", 0)
+
+    -- Scroll list of locations
+    local scroll = Instance.new("ScrollingFrame", page)
+    scroll.Size = UDim2.new(1,0,0,310); scroll.Position = UDim2.new(0,0,0,16)
+    scroll.BackgroundColor3 = C.card; scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = C.accent
+    scroll.CanvasSize = UDim2.new(0,0,0,0); corner(7, scroll); stroke(scroll, C.border, 1)
+    local ll = Instance.new("UIListLayout", scroll); ll.Padding = UDim.new(0,2)
+    local lp = Instance.new("UIPadding", scroll)
+    lp.PaddingTop=UDim.new(0,4); lp.PaddingLeft=UDim.new(0,4); lp.PaddingRight=UDim.new(0,4); lp.PaddingBottom=UDim.new(0,4)
+
+    -- TP button at bottom
+    local tpBtn = Instance.new("TextButton", page)
+    tpBtn.Size = UDim2.new(1,0,0,30); tpBtn.Position = UDim2.new(0,0,0,332)
+    tpBtn.BackgroundColor3 = Color3.fromRGB(40,30,80); tpBtn.BorderSizePixel = 0
+    tpBtn.Text = "Chon dia diem truoc"; tpBtn.TextColor3 = C.muted
+    tpBtn.TextSize = 12; tpBtn.Font = Enum.Font.GothamBold
+    corner(7, tpBtn); stroke(tpBtn, C.border, 1)
+
+    local rowBtns = {}
+
+    for i, loc in ipairs(locations) do
+        local row = Instance.new("Frame", scroll)
+        row.Size = UDim2.new(1,0,0,26); row.BackgroundColor3 = C.card
+        row.BorderSizePixel = 0; corner(5, row)
+
+        local bar = Instance.new("Frame", row)
+        bar.Size = UDim2.new(0,3,0.7,0); bar.Position = UDim2.new(0,2,0.15,0)
+        bar.BackgroundColor3 = C.cyan; bar.BorderSizePixel = 0; bar.Visible = false; corner(2, bar)
+
+        local rbtn = Instance.new("TextButton", row)
+        rbtn.Size = UDim2.new(1,0,1,0); rbtn.BackgroundTransparency = 1
+        rbtn.Text = loc.name; rbtn.TextColor3 = C.muted
+        rbtn.TextSize = 10; rbtn.Font = Enum.Font.GothamBold
+        rbtn.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UIPadding", rbtn).PaddingLeft = UDim.new(0,12)
+
+        rowBtns[i] = {row = row, btn = rbtn, bar = bar}
+
+        local idx = i
+        rbtn.MouseButton1Click:Connect(function()
+            -- Deselect all
+            for j, rb in ipairs(rowBtns) do
+                rb.row.BackgroundColor3 = C.card
+                rb.btn.TextColor3 = C.muted
+                rb.bar.Visible = false
+            end
+            -- Select this
+            selectedIndex = idx
+            row.BackgroundColor3 = C.selBg
+            rbtn.TextColor3 = C.white
+            bar.Visible = true
+            -- Update TP button
+            tpBtn.Text = "TP  >>  " .. loc.name
+            tpBtn.BackgroundColor3 = C.cyan
+            tpBtn.TextColor3 = Color3.fromRGB(10,10,10)
+            stroke(tpBtn, C.cyan, 1.5)
+        end)
+    end
+
+    scroll.CanvasSize = UDim2.new(0,0,0, ll.AbsoluteContentSize.Y + 8)
+
+    -- TP button action (Tween smooth)
+    tpBtn.MouseButton1Click:Connect(function()
+        if not selectedIndex then return end
+        local char = player.Character; if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+        local targetPos = locations[selectedIndex].pos
+        local targetCF  = CFrame.new(targetPos)
+        -- Tween smooth
+        local tween = TweenService:Create(hrp, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = targetCF})
+        tween:Play()
+        tpBtn.Text = "Teleporting..."
+        tpBtn.BackgroundColor3 = Color3.fromRGB(80,255,140)
+        task.delay(1.2, function()
+            tpBtn.Text = "TP  >>  " .. locations[selectedIndex].name
+            tpBtn.BackgroundColor3 = C.cyan
+        end)
+    end)
+end
+
+-- ===================== PAGE: SETTING =====================
+do
+    local page = pageSetting
+    local function secLabel(text, y)
+        local l = newLabel(page, text, 9, C.muted); l.Size = UDim2.new(1,0,0,14); l.Position = UDim2.new(0,2,0,y)
+    end
+
+    secLabel("ABOUT", 0)
+    local infoCard = Instance.new("Frame", page)
+    infoCard.Size = UDim2.new(1,0,0,76); infoCard.Position = UDim2.new(0,0,0,16)
+    infoCard.BackgroundColor3 = C.card; infoCard.BorderSizePixel = 0
+    corner(7, infoCard); stroke(infoCard, C.border, 1)
+    local icp = Instance.new("UIPadding", infoCard); icp.PaddingLeft=UDim.new(0,10); icp.PaddingTop=UDim.new(0,8)
+    local function infoRow(text, color, y)
+        local l = newLabel(infoCard, text, 11, color); l.Size = UDim2.new(1,-10,0,18); l.Position = UDim2.new(0,0,0,y)
+    end
+    infoRow("Tuanh Farm Hub V.003",        C.white,  0)
+    infoRow("FREEMIUM Build",              C.yellow, 18)
+    infoRow("Auto Attack + Spawn TP",      C.green,  36)
+    infoRow("Smelt Method + Weapon Equip", C.cyan,   54)
+
+    local cfgBadge = Instance.new("Frame", page)
+    cfgBadge.Size = UDim2.new(1,0,0,24); cfgBadge.Position = UDim2.new(0,0,0,98)
+    cfgBadge.BackgroundColor3 = _G.TuanhConfig and Color3.fromRGB(20,50,20) or Color3.fromRGB(40,30,10)
+    cfgBadge.BorderSizePixel = 0; corner(5, cfgBadge)
+    stroke(cfgBadge, _G.TuanhConfig and C.green or C.yellow, 1)
+    local cfgTxt = newLabel(cfgBadge,
+        _G.TuanhConfig and "Config loaded from _G.TuanhConfig" or "No _G config - using defaults",
+        9, _G.TuanhConfig and C.green or C.yellow, Enum.TextXAlignment.Center)
+    cfgTxt.Size = UDim2.new(1,0,1,0)
+
+    secLabel("EXPORT CONFIG", 130)
+    local exportCard = Instance.new("Frame", page)
+    exportCard.Size = UDim2.new(1,0,0,178); exportCard.Position = UDim2.new(0,0,0,146)
+    exportCard.BackgroundColor3 = C.card; exportCard.BorderSizePixel = 0
+    corner(7, exportCard); stroke(exportCard, C.border, 1)
+    local ecp = Instance.new("UIPadding", exportCard)
+    ecp.PaddingLeft=UDim.new(0,8); ecp.PaddingTop=UDim.new(0,8); ecp.PaddingRight=UDim.new(0,8); ecp.PaddingBottom=UDim.new(0,8)
+
+    local instrLbl = newLabel(exportCard, "Export -> Copy -> Paste ABOVE loadstring()()", 9, C.muted)
+    instrLbl.Size = UDim2.new(1,0,0,14); instrLbl.TextWrapped = true
+
+    local outputBox = Instance.new("TextBox", exportCard)
+    outputBox.Size = UDim2.new(1,0,0,88); outputBox.Position = UDim2.new(0,0,0,18)
+    outputBox.BackgroundColor3 = Color3.fromRGB(8,8,18); outputBox.BorderSizePixel = 0
+    outputBox.Text = "-- press Export to generate"; outputBox.TextColor3 = C.muted
+    outputBox.TextSize = 9; outputBox.Font = Enum.Font.Code
+    outputBox.TextXAlignment = Enum.TextXAlignment.Left; outputBox.TextYAlignment = Enum.TextYAlignment.Top
+    outputBox.ClearTextOnFocus = false; outputBox.MultiLine = true; outputBox.TextWrapped = true
+    corner(5, outputBox); stroke(outputBox, C.accent, 1)
+    local obp = Instance.new("UIPadding", outputBox); obp.PaddingLeft=UDim.new(0,6); obp.PaddingTop=UDim.new(0,5)
+
+    local exportStatus = newLabel(exportCard, "", 10, C.green, Enum.TextXAlignment.Center)
+    exportStatus.Size = UDim2.new(1,0,0,14); exportStatus.Position = UDim2.new(0,0,0,110)
+
+    local exportBtn = Instance.new("TextButton", exportCard)
+    exportBtn.Size = UDim2.new(0.48,0,0,28); exportBtn.Position = UDim2.new(0,0,0,128)
+    exportBtn.BackgroundColor3 = C.accent; exportBtn.BorderSizePixel = 0
+    exportBtn.Text = "Export Config"; exportBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    exportBtn.TextSize = 11; exportBtn.Font = Enum.Font.GothamBold; corner(6, exportBtn)
+
+    local saveGBtn = Instance.new("TextButton", exportCard)
+    saveGBtn.Size = UDim2.new(0.48,0,0,28); saveGBtn.Position = UDim2.new(0.52,0,0,128)
+    saveGBtn.BackgroundColor3 = C.green; saveGBtn.BorderSizePixel = 0
+    saveGBtn.Text = "Save to _G"; saveGBtn.TextColor3 = Color3.fromRGB(10,10,10)
+    saveGBtn.TextSize = 11; saveGBtn.Font = Enum.Font.GothamBold; corner(6, saveGBtn)
+
+    local function buildConfigString()
+        local mobList = {}
+        for name, _ in pairs(selectedMobs) do table.insert(mobList, '"'..name..'"') end
+        table.sort(mobList)
+        local lines = {
+            "_G.TuanhConfig = {",
+            "    autoAttack     = " .. tostring(autoAttack) .. ",",
+            "    autoSpawnTP    = " .. tostring(autoSpawnTP) .. ",",
+            "    autoSpawnClick = " .. tostring(autoSpawnClick) .. ",",
+            "    smeltMethod    = " .. tostring(smeltMethod) .. ",",
+            "    equippedWeapon = " .. (equippedWeapon and ('"'..equippedWeapon..'"') or "nil") .. ",",
+            "    selectedMobs   = {" .. table.concat(mobList, ", ") .. "},",
+            "}",
+        }
+        return table.concat(lines, "\n")
+    end
+
+    exportBtn.MouseButton1Click:Connect(function()
+        local cfg = buildConfigString()
+        outputBox.Text = cfg; outputBox.TextColor3 = C.cyan
+        setclipboard(cfg)
+        exportStatus.Text = "Copied to clipboard!"; exportStatus.TextColor3 = C.green
+        task.delay(4, function() exportStatus.Text = "" end)
+    end)
+
+    saveGBtn.MouseButton1Click:Connect(function()
+        local mobList = {}
+        for name, _ in pairs(selectedMobs) do table.insert(mobList, name) end
+        _G.TuanhConfig = {
+            autoAttack=autoAttack, autoSpawnTP=autoSpawnTP, autoSpawnClick=autoSpawnClick,
+            smeltMethod=smeltMethod, equippedWeapon=equippedWeapon, selectedMobs=mobList,
+        }
+        exportStatus.Text = "Saved to _G!"; exportStatus.TextColor3 = C.yellow
+        cfgBadge.BackgroundColor3 = Color3.fromRGB(20,50,20)
+        cfgTxt.Text = "Config saved to _G.TuanhConfig"; cfgTxt.TextColor3 = C.green
+        task.delay(3, function() exportStatus.Text = "" end)
+    end)
+end
+
+-- ===================== DEFAULT TAB =====================
+do
+    for _, t in pairs(tabs) do
+        t.page.Visible = false; t.btn.BackgroundColor3 = C.card
+        t.btn.TextColor3 = C.muted; t.bar.Visible = false
+    end
+    tabs["Auto Farm"].page.Visible = true
+    tabs["Auto Farm"].btn.BackgroundColor3 = C.selBg
+    tabs["Auto Farm"].btn.TextColor3 = C.white
+    tabs["Auto Farm"].bar.Visible = true
+end
+
+print("Tuanh Farm Hub V.003 loaded!")
