@@ -316,19 +316,32 @@ local function clickGuiBtn(guiObj)
     VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
 end
 
-task.spawn(function()
-    while task.wait(0.2) do
-        if not autoSpawnClick then continue end
-        for _, v in ipairs(player.PlayerGui:GetDescendants()) do
-            if v:IsA("TextButton") and v.Visible then
-                local txt = string.lower(v.Text)
-                if txt == "spawn" or v.Text == "เลือก" then
-                    clickGuiBtn(v)
-                    task.wait(2)
-                end
-            end
-        end
+local function clickSpawn()
+    if not autoSpawnClick then return end
+    local btn = player.PlayerGui:FindFirstChild("Load")
+        and player.PlayerGui.Load:FindFirstChild("Frame")
+        and player.PlayerGui.Load.Frame:FindFirstChild("Load")
+    if btn and btn.Visible then
+        local pos  = btn.AbsolutePosition
+        local size = btn.AbsoluteSize
+        local x = pos.X + size.X / 2
+        local y = pos.Y + size.Y / 2 + 50
+        VIM:SendMouseButtonEvent(x, y, 0, true,  game, 0)
+        task.wait(0.05)
+        VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+        print("✅ Click Spawn!")
     end
+end
+
+player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid")
+    hum.Died:Connect(function()
+        task.wait(1)
+        for attempt = 1, 20 do
+            clickSpawn()
+            task.wait(0.5)
+        end
+    end)
 end)
 
 -- ===================== AUTO ATTACK + SPAWN TP =====================
@@ -731,7 +744,7 @@ local pageAutoFish   = makeTab("Auto Fish",   "🎣",  4)
 local pageAutoSkill  = makeTab("Auto Skill",  "⚡",  5)
 local pageSetting    = makeTab("Setting",     "⚙",  6)
 
-local verLbl = newLabel(sidebar, "V.004", 9, C.muted, Enum.TextXAlignment.Center)
+local verLbl = newLabel(sidebar, "V.005", 9, C.muted, Enum.TextXAlignment.Center)
 verLbl.Size = UDim2.new(1,0,0,14)
 verLbl.Position = UDim2.new(0,0,1,-18)
 
