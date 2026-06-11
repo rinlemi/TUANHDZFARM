@@ -3,7 +3,7 @@
 -- NEW: Nút mở lại UI, Tab Teleport, Auto Skill thêm E & R
 
 -- ===================== KEY SYSTEM =====================
-local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbzSN-MSAhDafrL-KLLifRFJsOZFnzRZa6tknxCLOwXOfn9K2G72VJFB4xPe01nOzmXlFg/exec"
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbyGK_6iUOw-mDHy1jfQRfSW78mNNENugwF46dUyB20O6GY-8UtMov_5jiXjBocePyZqDQ/exec"
 
 local function getHWID()
     return game:GetService("RbxAnalyticsService"):GetClientId()
