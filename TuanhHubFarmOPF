@@ -301,9 +301,6 @@ local function startSmeltMethod(char)
     end)
 end
 
-player.CharacterAdded:Connect(function(char)
-    if smeltMethod then task.spawn(function() startSmeltMethod(char) end) end
-end)
 
 -- ===================== AUTO SPAWN CLICK =====================
 local function clickGuiBtn(guiObj)
