@@ -1124,19 +1124,18 @@ do
 
     local lastState = false
     RunService.Heartbeat:Connect(function()
-    local newState=getKaitunOn()
-    if newState~=kaitunOn then
-        kaitunOn=newState
-        if kaitunOn then
-            buildKaitunUI()
-            main.Visible=false        -- thêm dòng này
-            guiVisible=false          -- thêm dòng này
-            toggleBtn.BackgroundColor3=Color3.fromRGB(60,30,100)  -- thêm dòng này
-        else
-            if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui=nil end
+        local newState = getKaitunOn()
+        if newState ~= lastState then
+            lastState = newState
+            kaitunOn = newState
+            if kaitunOn then
+                buildKaitunUI()
+            else
+                if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
+            end
         end
-    end
-end)
+    end)
+end
 
 -- ===================== PAGE: SETTING =====================
 do
