@@ -992,7 +992,7 @@ do
                     if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
                     vokunThread = task.spawn(function()
                         vStatusLbl.Text = "⚔ Bắt đầu đánh Vokun..."; vStatusLbl.TextColor3 = C.red
-                        local dropped = farmBossUntilDrop("Vokun", "Reset Token", vStatusLbl, getVokun)
+                        local dropped = farmBossUntilDrop("Lv2000 Vokun", "Reset Token", vStatusLbl, getVokun)
                         if dropped then
                             vStatusLbl.Text = "✅ Reset Token nhận được! Dừng."; vStatusLbl.TextColor3 = C.green
                         else
