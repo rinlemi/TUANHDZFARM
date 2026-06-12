@@ -429,39 +429,44 @@ end)
 
 -- ===================== KAITUN UI LOGIC =====================
 local kaitunGui = nil
+local _setKaitunToggle = nil  -- sẽ được gán sau
+
 local function buildKaitunUI()
     if kaitunGui then pcall(function() kaitunGui:Destroy() end) end
     kaitunGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-    kaitunGui.Name="TuanhKaitunUI"; kaitunGui.ResetOnSpawn=false; kaitunGui.IgnoreGuiInset=true
+    kaitunGui.Name = "TuanhKaitunUI"; kaitunGui.ResetOnSpawn = false; kaitunGui.IgnoreGuiInset = true
 
-    local bg=Instance.new("Frame",kaitunGui)
-    bg.Size=UDim2.new(1,0,1,0); bg.BackgroundColor3=Color3.fromRGB(0,0,0); bg.BorderSizePixel=0
+    local bg = Instance.new("Frame", kaitunGui)
+    bg.Size = UDim2.new(1,0,1,0); bg.BackgroundColor3 = Color3.fromRGB(0,0,0); bg.BorderSizePixel = 0
 
-    local function mkLbl(text,color,posY)
-        local l=Instance.new("TextLabel",bg); l.BackgroundTransparency=1
-        l.AnchorPoint=Vector2.new(0.5,0); l.Position=UDim2.new(0.5,0,posY,0)
-        l.Size=UDim2.new(0,700,0,40); l.Font=Enum.Font.GothamBold; l.TextScaled=true
-        l.TextColor3=color; l.Text=text
-        local c=Instance.new("UITextSizeConstraint",l); c.MaxTextSize=36; c.MinTextSize=14
+    local function mkLbl(text, color, posY)
+        local l = Instance.new("TextLabel", bg); l.BackgroundTransparency = 1
+        l.AnchorPoint = Vector2.new(0.5,0); l.Position = UDim2.new(0.5,0,posY,0)
+        l.Size = UDim2.new(0,700,0,40); l.Font = Enum.Font.GothamBold; l.TextScaled = true
+        l.TextColor3 = color; l.Text = text
+        local c = Instance.new("UITextSizeConstraint",l); c.MaxTextSize = 36; c.MinTextSize = 14
         return l
     end
 
-    local titleL=Instance.new("TextLabel",bg); titleL.BackgroundTransparency=1
-    titleL.AnchorPoint=Vector2.new(0.5,0); titleL.Position=UDim2.new(0.5,0,0.25,0)
-    titleL.Size=UDim2.new(0,700,0,80); titleL.Text="TuanhKaitun"
-    titleL.Font=Enum.Font.GothamBlack; titleL.TextScaled=true
-    titleL.TextColor3=Color3.fromRGB(255,230,120); titleL.TextStrokeTransparency=0.3
-    titleL.TextStrokeColor3=Color3.fromRGB(180,140,0)
-    local tc=Instance.new("UITextSizeConstraint",titleL); tc.MaxTextSize=80; tc.MinTextSize=50
+    local titleL = Instance.new("TextLabel", bg); titleL.BackgroundTransparency = 1
+    titleL.AnchorPoint = Vector2.new(0.5,0); titleL.Position = UDim2.new(0.5,0,0.25,0)
+    titleL.Size = UDim2.new(0,700,0,80); titleL.Text = "TuanhKaitun"
+    titleL.Font = Enum.Font.GothamBlack; titleL.TextScaled = true
+    titleL.TextColor3 = Color3.fromRGB(255,230,120); titleL.TextStrokeTransparency = 0.3
+    titleL.TextStrokeColor3 = Color3.fromRGB(180,140,0)
+    local tc = Instance.new("UITextSizeConstraint", titleL); tc.MaxTextSize = 80; tc.MinTextSize = 50
 
-    local hideBtn=Instance.new("TextButton",bg)
-    hideBtn.Size=UDim2.new(0,40,0,40); hideBtn.Position=UDim2.new(1,-50,0,10)
-    hideBtn.BackgroundColor3=Color3.fromRGB(255,60,60); hideBtn.BorderSizePixel=0
-    hideBtn.Text="X"; hideBtn.TextScaled=true; hideBtn.Font=Enum.Font.GothamBold
-    hideBtn.TextColor3=Color3.new(1,1,1)
+    local hideBtn = Instance.new("TextButton", bg)
+    hideBtn.Size = UDim2.new(0,40,0,40); hideBtn.Position = UDim2.new(1,-50,0,10)
+    hideBtn.BackgroundColor3 = Color3.fromRGB(255,60,60); hideBtn.BorderSizePixel = 0
+    hideBtn.Text = "X"; hideBtn.TextScaled = true; hideBtn.Font = Enum.Font.GothamBold
+    hideBtn.TextColor3 = Color3.new(1,1,1)
     hideBtn.MouseButton1Click:Connect(function()
-        kaitunOn=false; bg.Visible=false
-    end)
+    kaitunOn = false
+    bg.Visible = false
+    -- Sync toggle UI về OFF
+    setKaitunOn(false)
+end)
 
     local beriLbl   = mkLbl("Beri : Loading...",   Color3.fromRGB(255,215,0),  0.38)
     local killsLbl  = mkLbl("Kills : Loading...",  Color3.fromRGB(255,120,120),0.43)
@@ -470,24 +475,24 @@ local function buildKaitunUI()
     local timeLbl   = mkLbl("Time : 0s",           Color3.fromRGB(0,255,255),  0.58)
     mkLbl("Status : Farm Beri", Color3.fromRGB(0,255,100), 0.63)
 
-    local gameName="Unknown"
-    pcall(function() gameName=MarketplaceService:GetProductInfo(game.PlaceId).Name end)
-    gameLbl.Text="Game : "..gameName
+    local gameName = "Unknown"
+    pcall(function() gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name end)
+    gameLbl.Text = "Game : " .. gameName
 
-    local elapsed=0
+    local elapsed = 0
     task.spawn(function()
         while kaitunOn and kaitunGui and kaitunGui.Parent do
-            task.wait(1); elapsed+=1; timeLbl.Text="Time : "..elapsed.."s"
+            task.wait(1); elapsed += 1; timeLbl.Text = "Time : " .. elapsed .. "s"
         end
     end)
     task.spawn(function()
         while kaitunOn and kaitunGui and kaitunGui.Parent do
             task.wait(1)
             pcall(function()
-                local stats=player.PlayerGui.Menu.Frame.MenuList.Stats.Frame.A
-                beriLbl.Text="Beri : "..stats.Beri.BeriAmount.Text
-                killsLbl.Text="Kills : "..stats.Kills.KillsAmount.Text
-                bountyLbl.Text="Bounty : "..stats.Bounty.BountyAmount.Text
+                local stats = player.PlayerGui.Menu.Frame.MenuList.Stats.Frame.A
+                beriLbl.Text   = "Beri : "   .. stats.Beri.BeriAmount.Text
+                killsLbl.Text  = "Kills : "  .. stats.Kills.KillsAmount.Text
+                bountyLbl.Text = "Bounty : " .. stats.Bounty.BountyAmount.Text
             end)
         end
     end)
@@ -934,7 +939,75 @@ do
         task.delay(2,function() tpBtn.Text="🚀  TP tới: "..loc.name end)
     end)
 end
+-- ===================== TP RING (HAKI QUEST) - trong tab Teleport =====================
+do
+    local page = pageTeleport
 
+    local RING_LOCATIONS = {
+        {name="Ring 1", cf=CFrame.new(106.879730, 267.507721, -37.204220)},
+        {name="Ring 2", cf=CFrame.new(1048.605713, 226.688156, -399.104675)},
+        {name="Ring 3", cf=CFrame.new(2025.178833, 495.679504, -643.312012)},
+        {name="Ring 4", cf=CFrame.new(1173.629639, 290.533813, -3178.955322)},
+        {name="Ring 5", cf=CFrame.new(1173.629639, 290.533813, -3178.955322)},
+        {name="Ring 6", cf=CFrame.new(-3059.809814, 1165.518677, -4262.070801)},
+        {name="Ring 7", cf=CFrame.new(1749.227051, 220.383850, 760.765747)},
+        {name="Ring 8", cf=CFrame.new(6671.069824, 566.312866, -1941.518433)},
+    }
+
+    -- Divider
+    local divLine = Instance.new("Frame", page)
+    divLine.Size = UDim2.new(1,0,0,1); divLine.Position = UDim2.new(0,0,0,370)
+    divLine.BackgroundColor3 = C.border; divLine.BorderSizePixel = 0
+
+    secLabel(page, "RING TP (HAKI QUEST)", 374)
+
+    local ringScroll = Instance.new("ScrollingFrame", page)
+    ringScroll.Size = UDim2.new(1,0,0,0)  -- sẽ set sau
+    ringScroll.Position = UDim2.new(0,0,0,390)
+    ringScroll.BackgroundColor3 = C.card; ringScroll.BorderSizePixel = 0
+    ringScroll.ScrollBarThickness = 3; ringScroll.ScrollBarImageColor3 = C.accent
+    ringScroll.CanvasSize = UDim2.new(0,0,0,0); corner(7, ringScroll); stroke(ringScroll, C.border, 1)
+
+    local rll = Instance.new("UIListLayout", ringScroll); rll.Padding = UDim.new(0,3)
+    local rlp = Instance.new("UIPadding", ringScroll)
+    rlp.PaddingTop = UDim.new(0,5); rlp.PaddingLeft = UDim.new(0,5)
+    rlp.PaddingRight = UDim.new(0,5); rlp.PaddingBottom = UDim.new(0,5)
+
+    -- Mỗi ring 1 nút bấm TP luôn
+    for _, ring in ipairs(RING_LOCATIONS) do
+        local row = Instance.new("Frame", ringScroll)
+        row.Size = UDim2.new(1,0,0,28); row.BackgroundColor3 = C.card
+        row.BorderSizePixel = 0; corner(5, row)
+
+        local bar = Instance.new("Frame", row)
+        bar.Size = UDim2.new(0,3,0.7,0); bar.Position = UDim2.new(0,2,0.15,0)
+        bar.BackgroundColor3 = C.orange; bar.BorderSizePixel = 0; corner(2, bar)
+
+        local lbl = newLabel(row, "💍  " .. ring.name, 10, C.white)
+        lbl.Size = UDim2.new(0.65,0,1,0); lbl.Position = UDim2.new(0,10,0,0)
+        lbl.TextYAlignment = Enum.TextYAlignment.Center
+
+        local tpBtn = Instance.new("TextButton", row)
+        tpBtn.Size = UDim2.new(0.3,0,0,20); tpBtn.Position = UDim2.new(0.68,0,0.5,-10)
+        tpBtn.BackgroundColor3 = C.accent; tpBtn.BorderSizePixel = 0
+        tpBtn.Text = "TP"; tpBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        tpBtn.TextSize = 10; tpBtn.Font = Enum.Font.GothamBold; corner(5, tpBtn)
+
+        local capturedCF = ring.cf
+        tpBtn.MouseButton1Click:Connect(function()
+            local char = player.Character; if not char then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+            hrp.CFrame = capturedCF * CFrame.new(0, 3, 0)
+            tpBtn.Text = "✅"
+            task.delay(1.5, function() tpBtn.Text = "TP" end)
+        end)
+    end
+
+    -- Tính chiều cao scroll: 8 ring * 31px + padding
+    local ringH = math.min(200, #RING_LOCATIONS * 31 + 10)
+    ringScroll.Size = UDim2.new(1, 0, 0, ringH)
+    ringScroll.CanvasSize = UDim2.new(0, 0, 0, rll.AbsoluteContentSize.Y + 10)
+end
 -- ===================== PAGE: TP FRUIT =====================
 do
     local page=pageTpFruit; secLabel(page,"FRUIT FINDER",0)
@@ -985,39 +1058,32 @@ end
 
 -- ===================== PAGE: KAITUN UI =====================
 do
-    local page=pageKaitun; secLabel(page,"KAITUN UI",0)
-    local infoCard=Instance.new("Frame",page); infoCard.Size=UDim2.new(1,0,0,60); infoCard.Position=UDim2.new(0,0,0,16); infoCard.BackgroundColor3=C.card; infoCard.BorderSizePixel=0; corner(7,infoCard); stroke(infoCard,C.border,1)
-    local kcp=Instance.new("UIPadding",infoCard); kcp.PaddingLeft=UDim.new(0,10); kcp.PaddingTop=UDim.new(0,8)
-    local k1=newLabel(infoCard,"Hiển thị Beri / Kills / Bounty",11,C.cyan); k1.Size=UDim2.new(1,-10,0,18)
-    local k2=newLabel(infoCard,"fullscreen overlay, có nút X để đóng",9,C.muted); k2.Size=UDim2.new(1,-10,0,16); k2.Position=UDim2.new(0,0,0,20)
-    local k3=newLabel(infoCard,"Cần PlayerGui.Menu tồn tại",9,C.muted); k3.Size=UDim2.new(1,-10,0,16); k3.Position=UDim2.new(0,0,0,36)
-    secLabel(page,"CONTROLS",82)
-    local _,getKaitunOn,setKaitunOn=makeToggle(page,"👁  Kaitun UI",98,C.yellow,false)
-    local kaitunBuilt = false
+    local page = pageKaitun; secLabel(page, "KAITUN UI", 0)
+    local infoCard = Instance.new("Frame", page); infoCard.Size = UDim2.new(1,0,0,60); infoCard.Position = UDim2.new(0,0,0,16); infoCard.BackgroundColor3 = C.card; infoCard.BorderSizePixel = 0; corner(7, infoCard); stroke(infoCard, C.border, 1)
+    local kcp = Instance.new("UIPadding", infoCard); kcp.PaddingLeft = UDim.new(0,10); kcp.PaddingTop = UDim.new(0,8)
+    local k1 = newLabel(infoCard, "Hiển thị Beri / Kills / Bounty", 11, C.cyan); k1.Size = UDim2.new(1,-10,0,18)
+    local k2 = newLabel(infoCard, "fullscreen overlay, có nút X để đóng", 9, C.muted); k2.Size = UDim2.new(1,-10,0,16); k2.Position = UDim2.new(0,0,0,20)
+    local k3 = newLabel(infoCard, "Cần PlayerGui.Menu tồn tại", 9, C.muted); k3.Size = UDim2.new(1,-10,0,16); k3.Position = UDim2.new(0,0,0,36)
+    secLabel(page, "CONTROLS", 82)
+    local _, getKaitunOn, setKaitunOn = makeToggle(page, "👁  Kaitun UI", 98, C.yellow, false)
 
-RunService.Heartbeat:Connect(function()
-    local newState = getKaitunOn()
-    if newState ~= kaitunOn then
-        kaitunOn = newState
-        if kaitunOn then
-            -- Chỉ build nếu chưa build hoặc đã bị destroy
-            if not kaitunGui or not kaitunGui.Parent then
-                kaitunBuilt = false
-            end
-            if not kaitunBuilt then
+    -- Gán setter để hideBtn trong buildKaitunUI có thể gọi
+    _setKaitunToggle = setKaitunOn
+
+    local lastState = false
+    RunService.Heartbeat:Connect(function()
+        local newState = getKaitunOn()
+        if newState ~= lastState then
+            lastState = newState
+            kaitunOn = newState
+            if kaitunOn then
                 buildKaitunUI()
-                kaitunBuilt = true
+            else
+                if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
             end
-        else
-            -- Tắt toggle → destroy UI
-            if kaitunGui then
-                pcall(function() kaitunGui:Destroy() end)
-                kaitunGui = nil
-            end
-            kaitunBuilt = false
         end
-    end
-end)
+    end)
+end
 
 -- ===================== PAGE: SETTING =====================
 do
