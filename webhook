@@ -1130,6 +1130,9 @@ do
             kaitunOn = newState
             if kaitunOn then
                 buildKaitunUI()
+                main.Visible=false        -- thêm dòng này
+            guiVisible=false          -- thêm dòng này
+            toggleBtn.BackgroundColor3=Color3.fromRGB(60,30,100)  -- thêm dòng này
             else
                 if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
             end
