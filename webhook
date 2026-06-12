@@ -1,5 +1,5 @@
--- TUANH FARM HUB V.007
--- FIX: Bỏ print spam | UI ẩn khi load | Auto spawn click 15s khi vào | Kaitun UI tab | TP Fruit tab | Export skill | Config skill
+-- TUANH FARM HUB V.008
+-- ADD: Boss Tab (Vokun/WhiteBeard/Crocodile/Gunner) | FIX: Auto attack 0.010s
 
 -- ===================== KEY SYSTEM =====================
 local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbzKuYH2xXsADaLbevWIl7j0p6iZ-xQ3Ss08wXWEkAiGcOq2fzLAvDDQ-1AW9NdwqGUmKg/exec"
