@@ -993,15 +993,31 @@ do
     local k3=newLabel(infoCard,"Cần PlayerGui.Menu tồn tại",9,C.muted); k3.Size=UDim2.new(1,-10,0,16); k3.Position=UDim2.new(0,0,0,36)
     secLabel(page,"CONTROLS",82)
     local _,getKaitunOn,setKaitunOn=makeToggle(page,"👁  Kaitun UI",98,C.yellow,false)
-    RunService.Heartbeat:Connect(function()
-        local newState=getKaitunOn()
-        if newState~=kaitunOn then
-            kaitunOn=newState
-            if kaitunOn then buildKaitunUI()
-            else if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui=nil end end
+    local kaitunBuilt = false
+
+RunService.Heartbeat:Connect(function()
+    local newState = getKaitunOn()
+    if newState ~= kaitunOn then
+        kaitunOn = newState
+        if kaitunOn then
+            -- Chỉ build nếu chưa build hoặc đã bị destroy
+            if not kaitunGui or not kaitunGui.Parent then
+                kaitunBuilt = false
+            end
+            if not kaitunBuilt then
+                buildKaitunUI()
+                kaitunBuilt = true
+            end
+        else
+            -- Tắt toggle → destroy UI
+            if kaitunGui then
+                pcall(function() kaitunGui:Destroy() end)
+                kaitunGui = nil
+            end
+            kaitunBuilt = false
         end
-    end)
-end
+    end
+end)
 
 -- ===================== PAGE: SETTING =====================
 do
