@@ -1013,7 +1013,7 @@ do
         {name="Ring 2", cf=CFrame.new(1048.605713, 226.688156, -399.104675)},
         {name="Ring 3", cf=CFrame.new(2025.178833, 495.679504, -643.312012)},
         {name="Ring 4", cf=CFrame.new(1173.629639, 290.533813, -3178.955322)},
-        {name="Ring 5", cf=CFrame.new(1173.629639, 290.533813, -3178.955322)},
+        {name="Ring 5", cf=CFrame.new(482.859009, 453.425629, 13206.950195)},
         {name="Ring 6", cf=CFrame.new(-3059.809814, 1165.518677, -4262.070801)},
         {name="Ring 7", cf=CFrame.new(1749.227051, 220.383850, 760.765747)},
         {name="Ring 8", cf=CFrame.new(6671.069824, 566.312866, -1941.518433)},
@@ -1124,18 +1124,19 @@ do
 
     local lastState = false
     RunService.Heartbeat:Connect(function()
-        local newState = getKaitunOn()
-        if newState ~= lastState then
-            lastState = newState
-            kaitunOn = newState
-            if kaitunOn then
-                buildKaitunUI()
-            else
-                if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
-            end
+    local newState=getKaitunOn()
+    if newState~=kaitunOn then
+        kaitunOn=newState
+        if kaitunOn then
+            buildKaitunUI()
+            main.Visible=false        -- thêm dòng này
+            guiVisible=false          -- thêm dòng này
+            toggleBtn.BackgroundColor3=Color3.fromRGB(60,30,100)  -- thêm dòng này
+        else
+            if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui=nil end
         end
-    end)
-end
+    end
+end)
 
 -- ===================== PAGE: SETTING =====================
 do
