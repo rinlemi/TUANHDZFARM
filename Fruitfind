@@ -909,14 +909,69 @@ end
 
 -- ===================== PAGE: TELEPORT =====================
 do
-    local page=pageTeleport; secLabel(page,"DANH SÁCH ĐỊA ĐIỂM",0)
-    local infoLbl=newLabel(page,"Chọn 1 địa điểm rồi bấm TP",9,C.muted); infoLbl.Size=UDim2.new(1,0,0,14); infoLbl.Position=UDim2.new(0,2,0,16)
-    local scroll=Instance.new("ScrollingFrame",page); scroll.Size=UDim2.new(1,0,0,300); scroll.Position=UDim2.new(0,0,0,32); scroll.BackgroundColor3=C.card; scroll.BorderSizePixel=0; scroll.ScrollBarThickness=3; scroll.ScrollBarImageColor3=C.accent; scroll.CanvasSize=UDim2.new(0,0,0,0); corner(7,scroll); stroke(scroll,C.border,1)
-    local ll=Instance.new("UIListLayout",scroll); ll.Padding=UDim.new(0,3)
-    local lp=Instance.new("UIPadding",scroll); lp.PaddingTop=UDim.new(0,5); lp.PaddingLeft=UDim.new(0,5); lp.PaddingRight=UDim.new(0,5); lp.PaddingBottom=UDim.new(0,5)
-    local tpBtn=Instance.new("TextButton",page); tpBtn.Size=UDim2.new(1,0,0,30); tpBtn.Position=UDim2.new(0,0,0,336); tpBtn.BackgroundColor3=Color3.fromRGB(40,35,80); tpBtn.BorderSizePixel=0; tpBtn.Text="🗺  Chọn địa điểm trước"; tpBtn.TextColor3=C.muted; tpBtn.TextSize=12; tpBtn.Font=Enum.Font.GothamBold; corner(7,tpBtn); stroke(tpBtn,C.border,1)
-    local selectedLoc=nil; local locRows={}
-    local function deselectAll() for i,rd in ipairs(locRows) do rd.frame.BackgroundColor3=C.card; rd.label.TextColor3=C.muted; rd.bar.Visible=false end end
+    local page = pageTeleport
+
+    -- Container scroll bao toàn bộ nội dung
+    local mainScroll = Instance.new("ScrollingFrame", page)
+    mainScroll.Size = UDim2.new(1,0,1,0)
+    mainScroll.Position = UDim2.new(0,0,0,0)
+    mainScroll.BackgroundTransparency = 1
+    mainScroll.BorderSizePixel = 0
+    mainScroll.ScrollBarThickness = 3
+    mainScroll.ScrollBarImageColor3 = C.accent
+    mainScroll.CanvasSize = UDim2.new(0,0,0,0)
+
+    -- Dùng UIListLayout để tự tính chiều cao
+    local mainLL = Instance.new("UIListLayout", mainScroll)
+    mainLL.Padding = UDim.new(0,4)
+    local mainPad = Instance.new("UIPadding", mainScroll)
+    mainPad.PaddingTop = UDim.new(0,4)
+    mainPad.PaddingBottom = UDim.new(0,8)
+
+    -- Tự cập nhật CanvasSize
+    mainLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        mainScroll.CanvasSize = UDim2.new(0,0,0,mainLL.AbsoluteContentSize.Y+12)
+    end)
+
+    -- Header
+    local headerLbl = Instance.new("Frame", mainScroll)
+    headerLbl.Size = UDim2.new(1,0,0,30)
+    headerLbl.BackgroundTransparency = 1
+    local hl = newLabel(headerLbl, "DANH SÁCH ĐỊA ĐIỂM", 10, C.accent)
+    hl.Size = UDim2.new(1,0,1,0); hl.Font = Enum.Font.GothamBold
+
+    local infoLbl = Instance.new("Frame", mainScroll)
+    infoLbl.Size = UDim2.new(1,0,0,14)
+    infoLbl.BackgroundTransparency = 1
+    local il = newLabel(infoLbl, "Chọn 1 địa điểm rồi bấm TP", 9, C.muted)
+    il.Size = UDim2.new(1,0,1,0)
+
+    -- Scroll danh sách địa điểm
+    local scroll = Instance.new("ScrollingFrame", mainScroll)
+    scroll.Size = UDim2.new(1,0,0,220)
+    scroll.BackgroundColor3 = C.card; scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = C.accent
+    scroll.CanvasSize = UDim2.new(0,0,0,0); corner(7,scroll); stroke(scroll,C.border,1)
+    local ll = Instance.new("UIListLayout",scroll); ll.Padding = UDim.new(0,3)
+    local lp = Instance.new("UIPadding",scroll)
+    lp.PaddingTop=UDim.new(0,5); lp.PaddingLeft=UDim.new(0,5)
+    lp.PaddingRight=UDim.new(0,5); lp.PaddingBottom=UDim.new(0,5)
+
+    local tpBtnFrame = Instance.new("Frame", mainScroll)
+    tpBtnFrame.Size = UDim2.new(1,0,0,30)
+    tpBtnFrame.BackgroundTransparency = 1
+    local tpBtn = Instance.new("TextButton", tpBtnFrame)
+    tpBtn.Size = UDim2.new(1,0,1,0)
+    tpBtn.BackgroundColor3 = Color3.fromRGB(40,35,80); tpBtn.BorderSizePixel = 0
+    tpBtn.Text = "🗺  Chọn địa điểm trước"; tpBtn.TextColor3 = C.muted
+    tpBtn.TextSize = 12; tpBtn.Font = Enum.Font.GothamBold; corner(7,tpBtn); stroke(tpBtn,C.border,1)
+
+    local selectedLoc = nil; local locRows = {}
+    local function deselectAll()
+        for i,rd in ipairs(locRows) do
+            rd.frame.BackgroundColor3=C.card; rd.label.TextColor3=C.muted; rd.bar.Visible=false
+        end
+    end
     for i,loc in ipairs(LOCATIONS) do
         local row=Instance.new("Frame",scroll); row.Size=UDim2.new(1,0,0,28); row.BackgroundColor3=C.card; row.BorderSizePixel=0; corner(5,row)
         local bar=Instance.new("Frame",row); bar.Size=UDim2.new(0,3,0.7,0); bar.Position=UDim2.new(0,2,0.15,0); bar.BackgroundColor3=C.accent; bar.BorderSizePixel=0; bar.Visible=false; corner(2,bar)
@@ -929,6 +984,7 @@ do
         end)
     end
     scroll.CanvasSize=UDim2.new(0,0,0,ll.AbsoluteContentSize.Y+10)
+
     tpBtn.MouseButton1Click:Connect(function()
         if not selectedLoc then return end
         local loc=LOCATIONS[selectedLoc]; if not loc then return end
@@ -938,10 +994,19 @@ do
         tpBtn.Text="✅  Đã TP tới "..loc.name
         task.delay(2,function() tpBtn.Text="🚀  TP tới: "..loc.name end)
     end)
-end
--- ===================== TP RING (HAKI QUEST) - trong tab Teleport =====================
-do
-    local page = pageTeleport
+
+    -- Divider
+    local divFrame = Instance.new("Frame", mainScroll)
+    divFrame.Size = UDim2.new(1,0,0,6); divFrame.BackgroundTransparency = 1
+    local divLine = Instance.new("Frame", divFrame)
+    divLine.Size = UDim2.new(1,0,0,1); divLine.Position = UDim2.new(0,0,0.5,0)
+    divLine.BackgroundColor3 = C.border; divLine.BorderSizePixel = 0
+
+    -- Ring TP Header
+    local ringHeaderFrame = Instance.new("Frame", mainScroll)
+    ringHeaderFrame.Size = UDim2.new(1,0,0,20); ringHeaderFrame.BackgroundTransparency = 1
+    local rhl = newLabel(ringHeaderFrame, "RING TP (HAKI QUEST)", 10, C.accent)
+    rhl.Size = UDim2.new(1,0,1,0); rhl.Font = Enum.Font.GothamBold
 
     local RING_LOCATIONS = {
         {name="Ring 1", cf=CFrame.new(106.879730, 267.507721, -37.204220)},
@@ -954,26 +1019,17 @@ do
         {name="Ring 8", cf=CFrame.new(6671.069824, 566.312866, -1941.518433)},
     }
 
-    -- Divider
-    local divLine = Instance.new("Frame", page)
-    divLine.Size = UDim2.new(1,0,0,1); divLine.Position = UDim2.new(0,0,0,370)
-    divLine.BackgroundColor3 = C.border; divLine.BorderSizePixel = 0
-
-    secLabel(page, "RING TP (HAKI QUEST)", 374)
-
-    local ringScroll = Instance.new("ScrollingFrame", page)
-    ringScroll.Size = UDim2.new(1,0,0,0)  -- sẽ set sau
-    ringScroll.Position = UDim2.new(0,0,0,390)
+    local ringScroll = Instance.new("ScrollingFrame", mainScroll)
+    ringScroll.Size = UDim2.new(1,0,0, math.min(220, #RING_LOCATIONS * 31 + 16))
     ringScroll.BackgroundColor3 = C.card; ringScroll.BorderSizePixel = 0
     ringScroll.ScrollBarThickness = 3; ringScroll.ScrollBarImageColor3 = C.accent
-    ringScroll.CanvasSize = UDim2.new(0,0,0,0); corner(7, ringScroll); stroke(ringScroll, C.border, 1)
+    ringScroll.CanvasSize = UDim2.new(0,0,0,0); corner(7,ringScroll); stroke(ringScroll,C.border,1)
 
     local rll = Instance.new("UIListLayout", ringScroll); rll.Padding = UDim.new(0,3)
     local rlp = Instance.new("UIPadding", ringScroll)
-    rlp.PaddingTop = UDim.new(0,5); rlp.PaddingLeft = UDim.new(0,5)
-    rlp.PaddingRight = UDim.new(0,5); rlp.PaddingBottom = UDim.new(0,5)
+    rlp.PaddingTop=UDim.new(0,5); rlp.PaddingLeft=UDim.new(0,5)
+    rlp.PaddingRight=UDim.new(0,5); rlp.PaddingBottom=UDim.new(0,5)
 
-    -- Mỗi ring 1 nút bấm TP luôn
     for _, ring in ipairs(RING_LOCATIONS) do
         local row = Instance.new("Frame", ringScroll)
         row.Size = UDim2.new(1,0,0,28); row.BackgroundColor3 = C.card
@@ -987,26 +1043,22 @@ do
         lbl.Size = UDim2.new(0.65,0,1,0); lbl.Position = UDim2.new(0,10,0,0)
         lbl.TextYAlignment = Enum.TextYAlignment.Center
 
-        local tpBtn = Instance.new("TextButton", row)
-        tpBtn.Size = UDim2.new(0.3,0,0,20); tpBtn.Position = UDim2.new(0.68,0,0.5,-10)
-        tpBtn.BackgroundColor3 = C.accent; tpBtn.BorderSizePixel = 0
-        tpBtn.Text = "TP"; tpBtn.TextColor3 = Color3.fromRGB(255,255,255)
-        tpBtn.TextSize = 10; tpBtn.Font = Enum.Font.GothamBold; corner(5, tpBtn)
+        local tpBtnR = Instance.new("TextButton", row)
+        tpBtnR.Size = UDim2.new(0.3,0,0,20); tpBtnR.Position = UDim2.new(0.68,0,0.5,-10)
+        tpBtnR.BackgroundColor3 = C.accent; tpBtnR.BorderSizePixel = 0
+        tpBtnR.Text = "TP"; tpBtnR.TextColor3 = Color3.fromRGB(255,255,255)
+        tpBtnR.TextSize = 10; tpBtnR.Font = Enum.Font.GothamBold; corner(5, tpBtnR)
 
         local capturedCF = ring.cf
-        tpBtn.MouseButton1Click:Connect(function()
+        tpBtnR.MouseButton1Click:Connect(function()
             local char = player.Character; if not char then return end
             local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
             hrp.CFrame = capturedCF * CFrame.new(0, 3, 0)
-            tpBtn.Text = "✅"
-            task.delay(1.5, function() tpBtn.Text = "TP" end)
+            tpBtnR.Text = "✅"
+            task.delay(1.5, function() tpBtnR.Text = "TP" end)
         end)
     end
-
-    -- Tính chiều cao scroll: 8 ring * 31px + padding
-    local ringH = math.min(200, #RING_LOCATIONS * 31 + 10)
-    ringScroll.Size = UDim2.new(1, 0, 0, ringH)
-    ringScroll.CanvasSize = UDim2.new(0, 0, 0, rll.AbsoluteContentSize.Y + 10)
+    ringScroll.CanvasSize = UDim2.new(0,0,0, rll.AbsoluteContentSize.Y + 10)
 end
 -- ===================== PAGE: TP FRUIT =====================
 do
