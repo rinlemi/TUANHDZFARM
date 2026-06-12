@@ -1123,19 +1123,22 @@ do
     _setKaitunToggle = setKaitunOn
 
     local lastState = false
-    RunService.Heartbeat:Connect(function()
-        local newState = getKaitunOn()
-        if newState ~= lastState then
-            lastState = newState
-            kaitunOn = newState
-            if kaitunOn then
-                buildKaitunUI()
-            else
-                if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
-            end
+RunService.Heartbeat:Connect(function()
+    local newState = getKaitunOn()
+    if newState ~= lastState then
+        lastState = newState
+        kaitunOn = newState
+        if kaitunOn then
+            buildKaitunUI()
+            -- Ẩn Hub chính khi bật Kaitun UI
+            guiVisible = false
+            main.Visible = false
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(60,30,100)
+        else
+            if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
         end
-    end)
-end
+    end
+end)
 
 -- ===================== PAGE: SETTING =====================
 do
