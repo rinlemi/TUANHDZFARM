@@ -1023,7 +1023,7 @@ do
                     if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
                     whiteBeardThread = task.spawn(function()
                         wStatusLbl.Text = "⚔ Bắt đầu đánh WhiteBeard..."; wStatusLbl.TextColor3 = C.orange
-                        local dropped = farmBossUntilDrop("WhiteBeard", "WhiteBeard Essence", wStatusLbl, getWB)
+                        local dropped = farmBossUntilDrop("Lv20000 WhiteBeard", "WhiteBeard Essence", wStatusLbl, getWB)
                         if dropped then
                             wStatusLbl.Text = "✅ WB Essence nhận được! Dừng."; wStatusLbl.TextColor3 = C.green
                         else
@@ -1053,7 +1053,7 @@ do
                     if whiteBeardThread then task.cancel(whiteBeardThread); whiteBeardThread = nil end
                     if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
                     crocoThread = task.spawn(function()
-                        farmBossLoop("Crocodile", bossLoopStatusLbl, getCroco)
+                        farmBossLoop("Lv2000 Crocodile", bossLoopStatusLbl, getCroco)
                         bossLoopStatusLbl.Text = "● Idle"; bossLoopStatusLbl.TextColor3 = C.muted
                         crocoThread = nil
                     end)
@@ -1079,7 +1079,7 @@ do
                     if whiteBeardThread then task.cancel(whiteBeardThread); whiteBeardThread = nil end
                     if crocoThread then task.cancel(crocoThread); crocoThread = nil end
                     gunnerThread = task.spawn(function()
-                        farmBossLoop("Gunner Captain", bossLoopStatusLbl, getGunner)
+                        farmBossLoop("Lv8000 Gunner Captain", bossLoopStatusLbl, getGunner)
                         bossLoopStatusLbl.Text = "● Idle"; bossLoopStatusLbl.TextColor3 = C.muted
                         gunnerThread = nil
                     end)
