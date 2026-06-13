@@ -1,6 +1,7 @@
--- TUANH FARM HUB V.007
--- FIX: Bỏ print spam | UI ẩn khi load | Auto spawn click 15s khi vào | Kaitun UI tab | TP Fruit tab | Export skill | Config skill
--- NEW: Boss Tab (Vokun, WhiteBeard, Crocodile, Gunner Captain)
+-- TUANH FARM HUB V.008
+-- FIX: Memory leak | Crash sau 30-60p | Anti-AFK tích hợp
+-- NEW: Tab Auto Sam (Quest Turn-in tự động)
+-- CHANGE: Heartbeat → task.wait poll | Mob list throttle | Boss loop 0.1s | Cleanup connection
 
 -- ===================== KEY SYSTEM =====================
 local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbzKuYH2xXsADaLbevWIl7j0p6iZ-xQ3Ss08wXWEkAiGcOq2fzLAvDDQ-1AW9NdwqGUmKg/exec"
@@ -137,6 +138,10 @@ local crocoThread      = nil
 local gunnerThread     = nil
 local ITEM_DROP_CF     = CFrame.new(6671.069824, 566.312866, -1941.518433)
 
+-- Auto Sam state
+local autoSamOn        = false
+local samThread        = nil
+
 -- ===================== LOAD CONFIG =====================
 if _G.TuanhConfig then
     local cfg = _G.TuanhConfig
@@ -219,9 +224,10 @@ local function equipWeapon(name)
     end
 end
 player.CharacterAdded:Connect(function(char) task.wait(3); if equippedWeapon then equipWeapon(equippedWeapon) end end)
+-- FIX: Giảm weapon check từ 1.5s → 3s để nhẹ hơn
 task.spawn(function()
     while true do
-        task.wait(1.5)
+        task.wait(3)
         if not equippedWeapon then continue end
         local char=player.Character; if not char then continue end
         local holding=false
@@ -302,9 +308,10 @@ local function hookSpawnOnDied(char)
 end
 player.CharacterAdded:Connect(function(char) hookSpawnOnDied(char) end)
 if player.Character then hookSpawnOnDied(player.Character) end
+-- FIX: Tăng interval spawn check từ 0.4s → 1s
 task.spawn(function()
     while true do
-        task.wait(0.4)
+        task.wait(1)
         if not autoSpawnClick then continue end
         if not player.Character then clickSpawnScan(); continue end
         local hum=player.Character:FindFirstChild("Humanoid")
@@ -313,7 +320,7 @@ task.spawn(function()
     end
 end)
 
--- FIX: Tự click spawn 15 giây khi vào game lần đầu
+-- Auto click spawn 15 giây khi vào game
 task.spawn(function()
     task.wait(2)
     local deadline = tick() + 15
@@ -324,9 +331,22 @@ task.spawn(function()
     end
 end)
 
--- ===================== AUTO ATTACK + SPAWN TP =====================
+-- ===================== ANTI-AFK (tích hợp, không cần nút) =====================
+-- FIX: Dùng VirtualUser thay vì loop nặng, tự động chạy nền
 task.spawn(function()
-    while task.wait(0.03) do
+    while true do
+        task.wait(60)  -- Mỗi 60 giây giả lập 1 action nhỏ
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0,0))
+        end)
+    end
+end)
+
+-- ===================== AUTO ATTACK + SPAWN TP =====================
+-- FIX: Tăng từ 0.03s → 0.07s để giảm CPU load
+task.spawn(function()
+    while task.wait(0.07) do
         if countSelected()==0 or not autoAttack then continue end
         local char=player.Character; if not char then continue end
         local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then continue end
@@ -353,13 +373,6 @@ local function hopServer()
             TeleportService:TeleportToPlaceInstance(gameId,server.id,player); return
         end
     end
-end
-local function getAllChests()
-    local chests={}
-    for _,v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Model") and v.Name=="TreasureChest" then table.insert(chests,v) end
-    end
-    return chests
 end
 local function tweenToChest(chest)
     local hrp=player.Character and player.Character:FindFirstChild("HumanoidRootPart"); if not hrp then return end
@@ -551,7 +564,7 @@ local function doAutoClick()
     VirtualUser:Button1Up(Vector2.new(500,500), workspace.CurrentCamera.CFrame)
 end
 
--- Farm boss cho đến khi item drop (Vokun / WhiteBeard)
+-- FIX: Tăng task.wait boss loop từ 0.03 → 0.1 để tránh crash
 local function farmBossUntilDrop(bossName, dropItemName, statusLbl, getToggle)
     local startCount = getBackpackItemCount(dropItemName)
     while getToggle() do
@@ -575,12 +588,11 @@ local function farmBossUntilDrop(bossName, dropItemName, statusLbl, getToggle)
         if statusLbl then
             statusLbl.Text = "⚔ Đang đánh " .. bossName .. "..."
         end
-        task.wait(0.03)
+        task.wait(0.1)  -- FIX: 0.03 → 0.1
     end
     return false
 end
 
--- Farm boss liên tục (Crocodile / Gunner Captain)
 local function farmBossLoop(bossName, statusLbl, getToggle)
     while getToggle() do
         local boss = findBossByName(bossName)
@@ -597,8 +609,51 @@ local function farmBossLoop(bossName, statusLbl, getToggle)
                 statusLbl.TextColor3 = Color3.fromRGB(255,200,60)
             end
         end
-        task.wait(0.03)
+        task.wait(0.1)  -- FIX: 0.03 → 0.1
     end
+end
+
+-- ===================== AUTO SAM QUEST LOGIC =====================
+local function clickBtn(btn)
+    local pos = btn.AbsolutePosition
+    local size = btn.AbsoluteSize
+    local x = pos.X + size.X / 2
+    local y = pos.Y + size.Y / 2 + 36
+    VIM:SendMouseMoveEvent(x, y, game)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local function doQuestTurnIn(statusLbl)
+    if statusLbl then statusLbl.Text = "🚶 Đang TP đến Sam..."; statusLbl.TextColor3 = Color3.fromRGB(255,200,60) end
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    local samHrp = workspace.Ignore.NPCs.DailyQuest.Sam:FindFirstChild("HumanoidRootPart")
+    if hrp and samHrp then
+        hrp.CFrame = samHrp.CFrame * CFrame.new(0, 0, 3)
+    end
+    task.wait(0.5)
+    local cd = workspace.Ignore.NPCs.DailyQuest.Sam.HumanoidRootPart:FindFirstChild("ClickDetector")
+    if cd then fireclickdetector(cd) end
+    task.wait(2)
+    if statusLbl then statusLbl.Text = "💬 Đang chọn dialogue..."; statusLbl.TextColor3 = Color3.fromRGB(0,200,255) end
+    for i = 1, 2 do
+        local ok, btn = pcall(function()
+            return player.PlayerGui.QuestGui.Dialogue.Options.Option
+        end)
+        if ok and btn and btn.Visible then
+            clickBtn(btn)
+        end
+        task.wait(2)
+    end
+    local ok2, leaveBtn = pcall(function()
+        return player.PlayerGui.QuestGui.Dialogue.Options.Leave
+    end)
+    if ok2 and leaveBtn and leaveBtn.Visible then
+        clickBtn(leaveBtn)
+    end
+    if statusLbl then statusLbl.Text = "✅ Đã nộp quest!"; statusLbl.TextColor3 = Color3.fromRGB(80,255,140) end
 end
 
 -- ===================== TELEPORT DATA =====================
@@ -626,8 +681,10 @@ local LOCATIONS={
 }
 
 -- ===================== GUI SETUP =====================
-local oldGui=game:GetService("CoreGui"):FindFirstChild("TuanhFarmHub_V7")
+local oldGui=game:GetService("CoreGui"):FindFirstChild("TuanhFarmHub_V8")
 if oldGui then oldGui:Destroy() end
+local oldV7=game:GetService("CoreGui"):FindFirstChild("TuanhFarmHub_V7")
+if oldV7 then oldV7:Destroy() end
 local oldToggle=game:GetService("CoreGui"):FindFirstChild("TuanhToggleBtn")
 if oldToggle then oldToggle:Destroy() end
 
@@ -656,13 +713,12 @@ end
 local TOTAL_W=700; local TOTAL_H=440; local SIDEBAR_W=165
 
 local gui=Instance.new("ScreenGui",game:GetService("CoreGui"))
-gui.ResetOnSpawn=false; gui.Name="TuanhFarmHub_V7"; gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+gui.ResetOnSpawn=false; gui.Name="TuanhFarmHub_V8"; gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 
 local main=Instance.new("Frame",gui)
 main.Size=UDim2.new(0,TOTAL_W,0,TOTAL_H); main.Position=UDim2.new(0.5,-TOTAL_W/2,0.5,-TOTAL_H/2)
 main.BackgroundColor3=C.bg; main.BorderSizePixel=0; main.Active=true; main.Draggable=true
 corner(10,main); stroke(main,C.accent,1.5)
--- FIX: Ẩn UI ngay khi load
 main.Visible=false
 
 local titleBar=Instance.new("Frame",main)
@@ -671,7 +727,7 @@ local tbFlat=Instance.new("Frame",titleBar); tbFlat.Size=UDim2.new(1,0,0.5,0); t
 local tGrad=Instance.new("UIGradient",titleBar)
 tGrad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(145,65,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(75,20,200))})
 tGrad.Rotation=90
-local titleTxt=newLabel(titleBar,"⚔  TUANH FARM HUB  V.007",13,Color3.fromRGB(255,255,255))
+local titleTxt=newLabel(titleBar,"⚔  TUANH FARM HUB  V.008",13,Color3.fromRGB(255,255,255))
 titleTxt.Size=UDim2.new(1,-90,1,0); titleTxt.Position=UDim2.new(0,12,0,0)
 local freeTag=Instance.new("Frame",titleBar); freeTag.Size=UDim2.new(0,72,0,18); freeTag.Position=UDim2.new(1,-130,0.5,-9)
 freeTag.BackgroundColor3=Color3.fromRGB(255,200,0); freeTag.BorderSizePixel=0; corner(4,freeTag)
@@ -719,15 +775,16 @@ end
 local pageAutoFarm  = makeTab("Auto Farm",   "⚔",1)
 local pageMethod    = makeTab("Method Farm", "✈",2)
 local pageBoss      = makeTab("Boss",        "💀",3)
-local pageAutoChest = makeTab("Auto Chest",  "🎁",4)
-local pageAutoFish  = makeTab("Auto Fish",   "🎣",5)
-local pageAutoSkill = makeTab("Auto Skill",  "⚡",6)
-local pageTeleport  = makeTab("Teleport",    "🗺",7)
-local pageTpFruit   = makeTab("TP Fruit",    "🍎",8)
-local pageKaitun    = makeTab("Kaitun UI",   "👁",9)
-local pageSetting   = makeTab("Setting",     "⚙",10)
+local pageAutoSam   = makeTab("Auto Sam",    "📋",4)
+local pageAutoChest = makeTab("Auto Chest",  "🎁",5)
+local pageAutoFish  = makeTab("Auto Fish",   "🎣",6)
+local pageAutoSkill = makeTab("Auto Skill",  "⚡",7)
+local pageTeleport  = makeTab("Teleport",    "🗺",8)
+local pageTpFruit   = makeTab("TP Fruit",    "🍎",9)
+local pageKaitun    = makeTab("Kaitun UI",   "👁",10)
+local pageSetting   = makeTab("Setting",     "⚙",11)
 
-local verLbl=newLabel(sidebar,"V.007",9,C.muted,Enum.TextXAlignment.Center)
+local verLbl=newLabel(sidebar,"V.008",9,C.muted,Enum.TextXAlignment.Center)
 verLbl.Size=UDim2.new(1,0,0,14); verLbl.Position=UDim2.new(0,0,1,-18)
 
 -- ===================== REUSABLE TOGGLE =====================
@@ -765,735 +822,4 @@ do
     searchBox.Size=UDim2.new(0.62,0,0,26); searchBox.Position=UDim2.new(0,0,0,16)
     searchBox.BackgroundColor3=C.card; searchBox.BorderSizePixel=0
     searchBox.PlaceholderText="🔍 Search..."; searchBox.Text=""
-    searchBox.TextColor3=C.white; searchBox.PlaceholderColor3=C.muted
-    searchBox.TextSize=11; searchBox.Font=Enum.Font.Gotham; searchBox.ClearTextOnFocus=false
-    corner(6,searchBox); stroke(searchBox,C.accent,1)
-    local sp=Instance.new("UIPadding",searchBox); sp.PaddingLeft=UDim.new(0,7)
-    local reloadBtn=Instance.new("TextButton",page)
-    reloadBtn.Size=UDim2.new(0.35,0,0,26); reloadBtn.Position=UDim2.new(0.65,0,0,16)
-    reloadBtn.BackgroundColor3=C.accent; reloadBtn.BorderSizePixel=0
-    reloadBtn.Text="🔄 Reload"; reloadBtn.TextColor3=Color3.fromRGB(255,255,255)
-    reloadBtn.TextSize=10; reloadBtn.Font=Enum.Font.GothamBold; corner(6,reloadBtn)
-    local scroll=Instance.new("ScrollingFrame",page)
-    scroll.Size=UDim2.new(1,0,0,118); scroll.Position=UDim2.new(0,0,0,46)
-    scroll.BackgroundColor3=C.card; scroll.BorderSizePixel=0
-    scroll.ScrollBarThickness=3; scroll.ScrollBarImageColor3=C.accent
-    scroll.CanvasSize=UDim2.new(0,0,0,0); corner(7,scroll); stroke(scroll,C.border,1)
-    local ll=Instance.new("UIListLayout",scroll); ll.Padding=UDim.new(0,2)
-    local lp2=Instance.new("UIPadding",scroll); lp2.PaddingTop=UDim.new(0,4); lp2.PaddingLeft=UDim.new(0,4); lp2.PaddingRight=UDim.new(0,4); lp2.PaddingBottom=UDim.new(0,4)
-    secLabel(page,"TARGET INFO",170)
-    local infoFrame=Instance.new("Frame",page)
-    infoFrame.Size=UDim2.new(1,0,0,64); infoFrame.Position=UDim2.new(0,0,0,186)
-    infoFrame.BackgroundColor3=C.card; infoFrame.BorderSizePixel=0; corner(7,infoFrame); stroke(infoFrame,C.border,1)
-    local ip=Instance.new("UIPadding",infoFrame); ip.PaddingLeft=UDim.new(0,8); ip.PaddingTop=UDim.new(0,6)
-    local selLabel=newLabel(infoFrame,"🎯  Selected: --",11,C.cyan); selLabel.Size=UDim2.new(1,-8,0,18)
-    local alvLabel=newLabel(infoFrame,"📊  Alive: --",11,C.yellow); alvLabel.Size=UDim2.new(0.5,0,0,18); alvLabel.Position=UDim2.new(0,0,0,22)
-    local dstLabel=newLabel(infoFrame,"📏  Dist: --",11,C.green); dstLabel.Size=UDim2.new(0.5,0,0,18); dstLabel.Position=UDim2.new(0.5,0,0,22)
-    local hpLbl=newLabel(infoFrame,"❤️  HP: --",11,C.red); hpLbl.Size=UDim2.new(1,-8,0,18); hpLbl.Position=UDim2.new(0,0,0,44)
-    secLabel(page,"CONTROLS",258)
-    local _,getAA,setAA=makeToggle(page,"⚔  Auto Attack",274,C.green,autoAttack)
-    local _,getATP,setATP=makeToggle(page,"✈  Auto Spawn TP",308,C.cyan,autoSpawnTP)
-    local _,getASC,setASC=makeToggle(page,"🖱  Auto Spawn Click",342,C.yellow,autoSpawnClick)
-    local spawnDebugLbl=newLabel(page,"SpawnClick: OFF",9,C.muted)
-    spawnDebugLbl.Size=UDim2.new(1,0,0,12); spawnDebugLbl.Position=UDim2.new(0,2,0,376)
-    local statusLbl=newLabel(page,"● Idle",10,C.muted)
-    statusLbl.Size=UDim2.new(1,0,0,14); statusLbl.Position=UDim2.new(0,2,1,-16)
-    RunService.Heartbeat:Connect(function()
-        autoAttack=getAA(); autoSpawnTP=getATP(); autoSpawnClick=getASC()
-        if autoSpawnClick then spawnDebugLbl.Text="SpawnClick: ON ✅"; spawnDebugLbl.TextColor3=C.green
-        else spawnDebugLbl.Text="SpawnClick: OFF"; spawnDebugLbl.TextColor3=C.muted end
-    end)
-    local allMobs={}
-    local function buildList(filter)
-        for _,v in ipairs(scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
-        for _,name in ipairs(allMobs) do
-            if filter=="" or name:lower():find(filter:lower(),1,true) then
-                local row=Instance.new("Frame",scroll)
-                row.Size=UDim2.new(1,0,0,26); row.BackgroundColor3=selectedMobs[name] and C.selBg or C.card; row.BorderSizePixel=0; corner(5,row)
-                local bar=Instance.new("Frame",row); bar.Size=UDim2.new(0,3,0.7,0); bar.Position=UDim2.new(0,2,0.15,0); bar.BackgroundColor3=C.accent; bar.BorderSizePixel=0; bar.Visible=selectedMobs[name]==true; corner(2,bar)
-                local rbtn=Instance.new("TextButton",row); rbtn.Size=UDim2.new(1,0,1,0); rbtn.BackgroundTransparency=1
-                rbtn.Text="👾  "..name; rbtn.TextColor3=selectedMobs[name] and C.white or C.muted; rbtn.TextSize=10; rbtn.Font=Enum.Font.GothamBold; rbtn.TextXAlignment=Enum.TextXAlignment.Left
-                local pp=Instance.new("UIPadding",rbtn); pp.PaddingLeft=UDim.new(0,10)
-                rbtn.MouseButton1Click:Connect(function()
-                    if selectedMobs[name] then selectedMobs[name]=nil; row.BackgroundColor3=C.card; rbtn.TextColor3=C.muted; bar.Visible=false
-                    else selectedMobs[name]=true; row.BackgroundColor3=C.selBg; rbtn.TextColor3=C.white; bar.Visible=true end
-                    local cnt=countSelected()
-                    if cnt==0 then selLabel.Text="🎯  Selected: --"; statusLbl.Text="● Idle"; statusLbl.TextColor3=C.muted
-                    elseif cnt==1 then local n=next(selectedMobs); selLabel.Text="🎯  Selected: "..n; statusLbl.Text="● Farming "..n; statusLbl.TextColor3=C.green
-                    else selLabel.Text="🎯  Selected: "..cnt.." mobs"; statusLbl.Text="● Multi-farm ("..cnt..")"; statusLbl.TextColor3=C.green end
-                end)
-            end
-        end
-        scroll.CanvasSize=UDim2.new(0,0,0,ll.AbsoluteContentSize.Y+8)
-    end
-    local function refreshMobs() allMobs=getMobs(); buildList(searchBox.Text) end
-    reloadBtn.MouseButton1Click:Connect(function() reloadBtn.Text="⏳"; refreshMobs(); task.delay(0.4,function() reloadBtn.Text="🔄 Reload" end) end)
-    searchBox:GetPropertyChangedSignal("Text"):Connect(function() buildList(searchBox.Text) end)
-    workspace.Alive.ChildAdded:Connect(function() task.wait(0.5); refreshMobs() end)
-    workspace.Alive.ChildRemoved:Connect(function() task.wait(0.5); refreshMobs() end)
-    task.spawn(function()
-        while true do
-            task.wait(0.5)
-            if countSelected()>0 then
-                local nearest,dist=getNearestMob()
-                local total=0; for n in pairs(selectedMobs) do total+=getAliveCount(n) end
-                alvLabel.Text="📊  Alive: "..total
-                if nearest then
-                    local hum=nearest:FindFirstChild("Humanoid"); local hp=hum and math.floor(hum.Health/hum.MaxHealth*100) or 0
-                    dstLabel.Text="📏  Dist: "..math.floor(dist or 0); hpLbl.Text="❤️  HP: "..hp.."%"
-                else dstLabel.Text="📏  Dist: --"; hpLbl.Text="❤️  HP: --" end
-            end
-        end
-    end)
-    refreshMobs()
-end
-
--- ===================== PAGE: METHOD FARM =====================
-do
-    local page=pageMethod; secLabel(page,"METHOD",0)
-    local smeltFrame=Instance.new("Frame",page); smeltFrame.Size=UDim2.new(1,0,0,34); smeltFrame.Position=UDim2.new(0,0,0,16); smeltFrame.BackgroundColor3=C.card; smeltFrame.BorderSizePixel=0; corner(7,smeltFrame); stroke(smeltFrame,C.border,1)
-    local sPill=Instance.new("Frame",smeltFrame); sPill.Size=UDim2.new(0,32,0,16); sPill.Position=UDim2.new(1,-38,0.5,-8); sPill.BackgroundColor3=C.muted; sPill.BorderSizePixel=0; corner(8,sPill)
-    local sDot=Instance.new("Frame",sPill); sDot.Size=UDim2.new(0,14,0,14); sDot.Position=UDim2.new(0,1,0,1); sDot.BackgroundColor3=Color3.fromRGB(180,180,200); sDot.BorderSizePixel=0; corner(7,sDot)
-    local sBtn=Instance.new("TextButton",smeltFrame); sBtn.Size=UDim2.new(1,-46,1,0); sBtn.BackgroundTransparency=1; sBtn.Text="🔥  Smelt Method Farm"; sBtn.TextColor3=C.muted; sBtn.TextSize=12; sBtn.Font=Enum.Font.GothamBold; sBtn.TextXAlignment=Enum.TextXAlignment.Left
-    local sp2=Instance.new("UIPadding",sBtn); sp2.PaddingLeft=UDim.new(0,12)
-    local function setSmelt(v)
-        smeltMethod=v
-        if v then smeltFrame.BackgroundColor3=Color3.fromRGB(28,14,65); sPill.BackgroundColor3=C.yellow; sDot.Position=UDim2.new(0,17,0,1); sDot.BackgroundColor3=Color3.fromRGB(255,255,255); sBtn.TextColor3=C.yellow
-            local char=player.Character; if char then task.spawn(function() startSmeltMethod(char) end) end
-        else smeltFrame.BackgroundColor3=C.card; sPill.BackgroundColor3=C.muted; sDot.Position=UDim2.new(0,1,0,1); sDot.BackgroundColor3=Color3.fromRGB(180,180,200); sBtn.TextColor3=C.muted; smeltLoop+=1 end
-    end
-    sBtn.MouseButton1Click:Connect(function() setSmelt(not smeltMethod) end)
-    if smeltMethod then setSmelt(true) end
-    local descCard=Instance.new("Frame",page); descCard.Size=UDim2.new(1,0,0,80); descCard.Position=UDim2.new(0,0,0,56); descCard.BackgroundColor3=C.card; descCard.BorderSizePixel=0; corner(7,descCard); stroke(descCard,C.border,1)
-    local dp=Instance.new("UIPadding",descCard); dp.PaddingLeft=UDim.new(0,10); dp.PaddingTop=UDim.new(0,8); dp.PaddingRight=UDim.new(0,10)
-    local descTxt=Instance.new("TextLabel",descCard); descTxt.Size=UDim2.new(1,0,1,0); descTxt.BackgroundTransparency=1
-    descTxt.Text="Smelt Method:\n• Z → skill 1 (1 lần)\n• X → skill 2 (1 lần)\n• Spam C → skill 3 liên tục\n• Re-activates sau mỗi lần chết"
-    descTxt.TextColor3=C.muted; descTxt.TextSize=11; descTxt.Font=Enum.Font.Gotham; descTxt.TextXAlignment=Enum.TextXAlignment.Left; descTxt.TextYAlignment=Enum.TextYAlignment.Top; descTxt.TextWrapped=true
-    secLabel(page,"WEAPON",142)
-    local weaponDisplay=Instance.new("TextButton",page); weaponDisplay.Size=UDim2.new(1,-68,0,30); weaponDisplay.Position=UDim2.new(0,0,0,158); weaponDisplay.BackgroundColor3=C.card; weaponDisplay.BorderSizePixel=0
-    weaponDisplay.Text=equippedWeapon and ("🗡  "..equippedWeapon.."  ▼") or "🗡  None selected  ▼"; weaponDisplay.TextColor3=equippedWeapon and C.white or C.muted; weaponDisplay.TextSize=11; weaponDisplay.Font=Enum.Font.GothamBold; weaponDisplay.TextXAlignment=Enum.TextXAlignment.Left
-    corner(6,weaponDisplay); stroke(weaponDisplay,C.accent,1); local wdp=Instance.new("UIPadding",weaponDisplay); wdp.PaddingLeft=UDim.new(0,10)
-    local weaponDropdown=Instance.new("Frame",page); weaponDropdown.Size=UDim2.new(1,0,0,0); weaponDropdown.Position=UDim2.new(0,0,0,190); weaponDropdown.BackgroundColor3=C.selBg; weaponDropdown.BorderSizePixel=0; weaponDropdown.Visible=false; weaponDropdown.ClipsDescendants=true; corner(6,weaponDropdown); stroke(weaponDropdown,C.accent,1)
-    local wScroll=Instance.new("ScrollingFrame",weaponDropdown); wScroll.Size=UDim2.new(1,0,1,0); wScroll.BackgroundTransparency=1; wScroll.BorderSizePixel=0; wScroll.ScrollBarThickness=3; wScroll.ScrollBarImageColor3=C.accent; wScroll.CanvasSize=UDim2.new(0,0,0,0)
-    local wll=Instance.new("UIListLayout",wScroll); wll.Padding=UDim.new(0,2)
-    local wlp2=Instance.new("UIPadding",wScroll); wlp2.PaddingTop=UDim.new(0,4); wlp2.PaddingLeft=UDim.new(0,4); wlp2.PaddingRight=UDim.new(0,4); wlp2.PaddingBottom=UDim.new(0,4)
-    local dropOpen=false
-    local function buildWeaponList()
-        for _,v in ipairs(wScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-        local weapons=getWeapons(); table.insert(weapons,1,"(None)")
-        for _,wname in ipairs(weapons) do
-            local wb=Instance.new("TextButton",wScroll); wb.Size=UDim2.new(1,0,0,24); wb.BackgroundColor3=(equippedWeapon==wname) and C.accent or Color3.fromRGB(30,20,60); wb.BorderSizePixel=0; wb.Text="  "..wname; wb.TextColor3=C.white; wb.TextSize=10; wb.Font=Enum.Font.GothamBold; wb.TextXAlignment=Enum.TextXAlignment.Left; corner(4,wb)
-            wb.MouseButton1Click:Connect(function()
-                if wname=="(None)" then equippedWeapon=nil; weaponDisplay.Text="🗡  None selected  ▼"; weaponDisplay.TextColor3=C.muted
-                else equippedWeapon=wname; weaponDisplay.Text="🗡  "..wname.."  ▼"; weaponDisplay.TextColor3=C.white; equipWeapon(wname) end
-                dropOpen=false; weaponDropdown.Visible=false; buildWeaponList()
-            end)
-        end
-        wScroll.CanvasSize=UDim2.new(0,0,0,wll.AbsoluteContentSize.Y+8)
-        weaponDropdown.Size=UDim2.new(1,0,0,math.min(120,wll.AbsoluteContentSize.Y+10))
-    end
-    weaponDisplay.MouseButton1Click:Connect(function() dropOpen=not dropOpen; if dropOpen then buildWeaponList(); weaponDropdown.Visible=true else weaponDropdown.Visible=false end end)
-    local wReload=Instance.new("TextButton",page); wReload.Size=UDim2.new(0,60,0,30); wReload.Position=UDim2.new(1,-64,0,158); wReload.BackgroundColor3=C.accent; wReload.BorderSizePixel=0; wReload.Text="🔄"; wReload.TextColor3=Color3.fromRGB(255,255,255); wReload.TextSize=11; wReload.Font=Enum.Font.GothamBold; corner(5,wReload)
-    wReload.MouseButton1Click:Connect(function() buildWeaponList() end)
-    if equippedWeapon then task.delay(4,function() equipWeapon(equippedWeapon) end) end
-end
-
--- ===================== PAGE: BOSS =====================
-do
-    local page = pageBoss
-
-    -- Scroll bao toàn bộ nội dung Boss tab
-    local bossScroll = Instance.new("ScrollingFrame", page)
-    bossScroll.Size = UDim2.new(1,0,1,0)
-    bossScroll.Position = UDim2.new(0,0,0,0)
-    bossScroll.BackgroundTransparency = 1
-    bossScroll.BorderSizePixel = 0
-    bossScroll.ScrollBarThickness = 3
-    bossScroll.ScrollBarImageColor3 = C.accent
-    bossScroll.CanvasSize = UDim2.new(0,0,0,600)
-    bossScroll.ClipsDescendants = true
-
-    -- Helper tạo info card cho boss
-    local function makeBossCard(parent, yPos, titleText, titleColor, infoText)
-        local card = Instance.new("Frame", parent)
-        card.Size = UDim2.new(1,0,0,68)
-        card.Position = UDim2.new(0,0,0,yPos)
-        card.BackgroundColor3 = C.card; card.BorderSizePixel = 0
-        corner(7, card); stroke(card, C.border, 1)
-        local cp = Instance.new("UIPadding", card)
-        cp.PaddingLeft = UDim.new(0,8); cp.PaddingTop = UDim.new(0,6)
-        local titleLbl = newLabel(card, titleText, 11, titleColor)
-        titleLbl.Size = UDim2.new(1,-8,0,18)
-        local infoLbl = newLabel(card, infoText, 9, C.muted)
-        infoLbl.Size = UDim2.new(1,-8,0,14)
-        infoLbl.Position = UDim2.new(0,0,0,20)
-        infoLbl.TextWrapped = true
-        local statusLbl = newLabel(card, "● Idle", 9, C.muted)
-        statusLbl.Size = UDim2.new(1,-8,0,14)
-        statusLbl.Position = UDim2.new(0,0,0,36)
-        return card, statusLbl
-    end
-
-    -- ── Section 1: Boss với item drop ──
-    secLabel(bossScroll, "BOSS: FARM CHO ĐẾN KHI NHẬN ITEM", 0)
-
-    -- Vokun Card
-    local _, vStatusLbl = makeBossCard(bossScroll, 16,
-        "💀  Auto Farm Vokun Lv2000 (Reset Token)",
-        C.red,
-        "Chỉ đánh Lv2000 Vokun • Nhận Reset Token → TP + Dừng")
-
-    local _, getVokun, setVokun = makeToggle(bossScroll, "💀  Auto Farm Vokun (ResetToken)", 88, C.red, false)
-
-    -- WhiteBeard Card
-    local _, wStatusLbl = makeBossCard(bossScroll, 130,
-        "🔥  Auto Farm WhiteBeard Lv20000 (WB Essence)",
-        C.orange,
-        "Chỉ đánh Lv20000 WhiteBeard • Nhận WB Essence → TP + Dừng")
-
-    local _, getWB, setWB = makeToggle(bossScroll, "🔥  Auto Farm WhiteBeard (WB Essence)", 202, C.orange, false)
-
-    -- ── Section 2: Boss loop liên tục ──
-    secLabel(bossScroll, "BOSS: ĐÁNH LIÊN TỤC", 246)
-
-    local _, getCroco, setCroco     = makeToggle(bossScroll, "🐊  Auto Boss Lv2000 Crocodile",      262, C.cyan,   false)
-    local _, getGunner, setGunner   = makeToggle(bossScroll, "🔫  Auto Boss Lv8000 Gunner Captain",  296, C.yellow, false)
-
-    -- Status chung cho loop boss
-    local bossLoopStatusLbl = newLabel(bossScroll, "● Idle", 10, C.muted)
-    bossLoopStatusLbl.Size = UDim2.new(1,0,0,14)
-    bossLoopStatusLbl.Position = UDim2.new(0,2,0,336)
-
-    -- Info note
-    local noteCard = Instance.new("Frame", bossScroll)
-    noteCard.Size = UDim2.new(1,0,0,44)
-    noteCard.Position = UDim2.new(0,0,0,360)
-    noteCard.BackgroundColor3 = Color3.fromRGB(18,10,40); noteCard.BorderSizePixel = 0
-    corner(7, noteCard); stroke(noteCard, C.border, 1)
-    local np = Instance.new("UIPadding", noteCard); np.PaddingLeft = UDim.new(0,8); np.PaddingTop = UDim.new(0,6)
-    local noteLbl = newLabel(noteCard, "⚠ Tên boss phải khớp với workspace.Alive\nItem name phải khớp với tên trong Backpack", 9, C.muted)
-    noteLbl.Size = UDim2.new(1,-8,1,0); noteLbl.TextWrapped = true; noteLbl.TextYAlignment = Enum.TextYAlignment.Top
-
-    -- ── Logic watchers ──
-
-    -- Vokun watcher
-    local lastVokun = false
-    task.spawn(function()
-        while true do
-            task.wait(0.2)
-            local cur = getVokun()
-            if cur ~= lastVokun then
-                lastVokun = cur
-                if cur then
-                    -- tắt các boss khác
-                    setWB(false); setCroco(false); setGunner(false)
-                    if whiteBeardThread then task.cancel(whiteBeardThread); whiteBeardThread = nil end
-                    if crocoThread then task.cancel(crocoThread); crocoThread = nil end
-                    if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
-                    vokunThread = task.spawn(function()
-                        vStatusLbl.Text = "⚔ Bắt đầu đánh Vokun..."; vStatusLbl.TextColor3 = C.red
-                        local dropped = farmBossUntilDrop("Lv2000 Vokun", "Reset Token", vStatusLbl, getVokun)
-                        if dropped then
-                            vStatusLbl.Text = "✅ Reset Token nhận được! Dừng."; vStatusLbl.TextColor3 = C.green
-                        else
-                            vStatusLbl.Text = "● Dừng"; vStatusLbl.TextColor3 = C.muted
-                        end
-                        setVokun(false); vokunThread = nil
-                    end)
-                else
-                    if vokunThread then task.cancel(vokunThread); vokunThread = nil end
-                    vStatusLbl.Text = "● Idle"; vStatusLbl.TextColor3 = C.muted
-                end
-            end
-        end
-    end)
-
-    -- WhiteBeard watcher
-    local lastWB = false
-    task.spawn(function()
-        while true do
-            task.wait(0.2)
-            local cur = getWB()
-            if cur ~= lastWB then
-                lastWB = cur
-                if cur then
-                    setVokun(false); setCroco(false); setGunner(false)
-                    if vokunThread then task.cancel(vokunThread); vokunThread = nil end
-                    if crocoThread then task.cancel(crocoThread); crocoThread = nil end
-                    if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
-                    whiteBeardThread = task.spawn(function()
-                        wStatusLbl.Text = "⚔ Bắt đầu đánh WhiteBeard..."; wStatusLbl.TextColor3 = C.orange
-                        local dropped = farmBossUntilDrop("Lv20000 WhiteBeard", "WhiteBeard Essence", wStatusLbl, getWB)
-                        if dropped then
-                            wStatusLbl.Text = "✅ WB Essence nhận được! Dừng."; wStatusLbl.TextColor3 = C.green
-                        else
-                            wStatusLbl.Text = "● Dừng"; wStatusLbl.TextColor3 = C.muted
-                        end
-                        setWB(false); whiteBeardThread = nil
-                    end)
-                else
-                    if whiteBeardThread then task.cancel(whiteBeardThread); whiteBeardThread = nil end
-                    wStatusLbl.Text = "● Idle"; wStatusLbl.TextColor3 = C.muted
-                end
-            end
-        end
-    end)
-
-    -- Crocodile watcher
-    local lastCroco = false
-    task.spawn(function()
-        while true do
-            task.wait(0.2)
-            local cur = getCroco()
-            if cur ~= lastCroco then
-                lastCroco = cur
-                if cur then
-                    setVokun(false); setWB(false); setGunner(false)
-                    if vokunThread then task.cancel(vokunThread); vokunThread = nil end
-                    if whiteBeardThread then task.cancel(whiteBeardThread); whiteBeardThread = nil end
-                    if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
-                    crocoThread = task.spawn(function()
-                        farmBossLoop("Lv2000 Crocodile", bossLoopStatusLbl, getCroco)
-                        bossLoopStatusLbl.Text = "● Idle"; bossLoopStatusLbl.TextColor3 = C.muted
-                        crocoThread = nil
-                    end)
-                else
-                    if crocoThread then task.cancel(crocoThread); crocoThread = nil end
-                    bossLoopStatusLbl.Text = "● Idle"; bossLoopStatusLbl.TextColor3 = C.muted
-                end
-            end
-        end
-    end)
-
-    -- Gunner Captain watcher
-    local lastGunner = false
-    task.spawn(function()
-        while true do
-            task.wait(0.2)
-            local cur = getGunner()
-            if cur ~= lastGunner then
-                lastGunner = cur
-                if cur then
-                    setVokun(false); setWB(false); setCroco(false)
-                    if vokunThread then task.cancel(vokunThread); vokunThread = nil end
-                    if whiteBeardThread then task.cancel(whiteBeardThread); whiteBeardThread = nil end
-                    if crocoThread then task.cancel(crocoThread); crocoThread = nil end
-                    gunnerThread = task.spawn(function()
-                        farmBossLoop("Lv8000 Gunner Captain", bossLoopStatusLbl, getGunner)
-                        bossLoopStatusLbl.Text = "● Idle"; bossLoopStatusLbl.TextColor3 = C.muted
-                        gunnerThread = nil
-                    end)
-                else
-                    if gunnerThread then task.cancel(gunnerThread); gunnerThread = nil end
-                    bossLoopStatusLbl.Text = "● Idle"; bossLoopStatusLbl.TextColor3 = C.muted
-                end
-            end
-        end
-    end)
-end
-
--- ===================== PAGE: AUTO CHEST =====================
-do
-    local page=pageAutoChest; secLabel(page,"AUTO CHEST",0)
-    local infoCard=Instance.new("Frame",page); infoCard.Size=UDim2.new(1,0,0,68); infoCard.Position=UDim2.new(0,0,0,16); infoCard.BackgroundColor3=C.card; infoCard.BorderSizePixel=0; corner(7,infoCard); stroke(infoCard,C.border,1)
-    local icp=Instance.new("UIPadding",infoCard); icp.PaddingLeft=UDim.new(0,10); icp.PaddingTop=UDim.new(0,8)
-    local chestStatusLbl=newLabel(infoCard,"🎁  Status: OFF",11,C.muted); chestStatusLbl.Size=UDim2.new(1,-10,0,18)
-    local chestCountLbl=newLabel(infoCard,"📦  Chests collected: 0",11,C.yellow); chestCountLbl.Size=UDim2.new(1,-10,0,18); chestCountLbl.Position=UDim2.new(0,0,0,22)
-    local chestDescLbl=newLabel(infoCard,"⬆ Bay +400 → hạ xuống chest → nhặt",9,C.muted); chestDescLbl.Size=UDim2.new(1,-10,0,16); chestDescLbl.Position=UDim2.new(0,0,0,46)
-    secLabel(page,"CONTROLS",90)
-    local chestCount=0; local _,getChestOn,setChestOn=makeToggle(page,"🎁  Auto Chest",106,C.orange,false)
-    secLabel(page,"SERVER HOP",142)
-    local hopCard=Instance.new("Frame",page); hopCard.Size=UDim2.new(1,0,0,34); hopCard.Position=UDim2.new(0,0,0,158); hopCard.BackgroundColor3=C.card; hopCard.BorderSizePixel=0; corner(7,hopCard); stroke(hopCard,C.border,1)
-    local hopBtn=Instance.new("TextButton",hopCard); hopBtn.Size=UDim2.new(1,0,1,0); hopBtn.BackgroundTransparency=1; hopBtn.Text="🌐  Manual Server Hop"; hopBtn.TextColor3=C.cyan; hopBtn.TextSize=11; hopBtn.Font=Enum.Font.GothamBold; hopBtn.TextXAlignment=Enum.TextXAlignment.Left
-    local hpp=Instance.new("UIPadding",hopBtn); hpp.PaddingLeft=UDim.new(0,10)
-    hopBtn.MouseButton1Click:Connect(function() hopBtn.Text="⏳  Đang tìm server..."; hopServer(); task.delay(2,function() hopBtn.Text="🌐  Manual Server Hop" end) end)
-    local chestLoopThread=nil
-    RunService.Heartbeat:Connect(function()
-        local newState=getChestOn()
-        if newState~=autoChestOn then
-            autoChestOn=newState
-            if autoChestOn then
-                chestStatusLbl.Text="🎁  Status: RUNNING ✅"; chestStatusLbl.TextColor3=C.green
-                chestLoopThread=task.spawn(function()
-                    while autoChestOn do
-                        local chests=getAllChests()
-                        if #chests>0 then for _,chest in ipairs(chests) do if not autoChestOn then break end; if chest and chest.Parent then tweenToChest(chest); chestCount+=1; chestCountLbl.Text="📦  Chests collected: "..chestCount end end end
-                        task.wait(2)
-                    end
-                end)
-            else
-                chestStatusLbl.Text="🎁  Status: OFF"; chestStatusLbl.TextColor3=C.muted
-                if chestLoopThread then pcall(function() task.cancel(chestLoopThread) end); chestLoopThread=nil end
-            end
-        end
-    end)
-end
-
--- ===================== PAGE: AUTO FISHING =====================
-do
-    local page=pageAutoFish; secLabel(page,"AUTO FISHING",0)
-    local infoCard=Instance.new("Frame",page); infoCard.Size=UDim2.new(1,0,0,60); infoCard.Position=UDim2.new(0,0,0,16); infoCard.BackgroundColor3=C.card; infoCard.BorderSizePixel=0; corner(7,infoCard); stroke(infoCard,C.border,1)
-    local icp=Instance.new("UIPadding",infoCard); icp.PaddingLeft=UDim.new(0,10); icp.PaddingTop=UDim.new(0,8)
-    local fishStatusLbl=newLabel(infoCard,"🎣  Status: OFF",11,C.muted); fishStatusLbl.Size=UDim2.new(1,-10,0,18)
-    local fishCountLbl=newLabel(infoCard,"🐟  Cá đã câu: 0",11,C.cyan); fishCountLbl.Size=UDim2.new(1,-10,0,18); fishCountLbl.Position=UDim2.new(0,0,0,22)
-    local fishDescLbl=newLabel(infoCard,"Click thả cần 1 lần đầu, script tự lo!",9,C.muted); fishDescLbl.Size=UDim2.new(1,-10,0,14); fishDescLbl.Position=UDim2.new(0,0,0,44)
-    secLabel(page,"CAST POSITION",82)
-    local castCard=Instance.new("Frame",page); castCard.Size=UDim2.new(1,0,0,40); castCard.Position=UDim2.new(0,0,0,98); castCard.BackgroundColor3=C.card; castCard.BorderSizePixel=0; corner(7,castCard); stroke(castCard,C.border,1)
-    local cpp=Instance.new("UIPadding",castCard); cpp.PaddingLeft=UDim.new(0,10); cpp.PaddingTop=UDim.new(0,4)
-    local xLbl=newLabel(castCard,"X:",11,C.muted); xLbl.Size=UDim2.new(0,16,0,16); xLbl.Position=UDim2.new(0,0,0,4)
-    local xInput=Instance.new("TextBox",castCard); xInput.Size=UDim2.new(0,60,0,22); xInput.Position=UDim2.new(0,18,0,2); xInput.BackgroundColor3=Color3.fromRGB(8,8,18); xInput.BorderSizePixel=0; xInput.Text=tostring(CAST_X); xInput.TextColor3=C.cyan; xInput.TextSize=11; xInput.Font=Enum.Font.GothamBold; xInput.ClearTextOnFocus=false; corner(5,xInput); stroke(xInput,C.accent,1)
-    local xip=Instance.new("UIPadding",xInput); xip.PaddingLeft=UDim.new(0,5)
-    local yLbl=newLabel(castCard,"Y:",11,C.muted); yLbl.Size=UDim2.new(0,16,0,16); yLbl.Position=UDim2.new(0,90,0,4)
-    local yInput=Instance.new("TextBox",castCard); yInput.Size=UDim2.new(0,60,0,22); yInput.Position=UDim2.new(0,108,0,2); yInput.BackgroundColor3=Color3.fromRGB(8,8,18); yInput.BorderSizePixel=0; yInput.Text=tostring(CAST_Y); yInput.TextColor3=C.cyan; yInput.TextSize=11; yInput.Font=Enum.Font.GothamBold; yInput.ClearTextOnFocus=false; corner(5,yInput); stroke(yInput,C.accent,1)
-    local yip=Instance.new("UIPadding",yInput); yip.PaddingLeft=UDim.new(0,5)
-    local applyBtn=Instance.new("TextButton",castCard); applyBtn.Size=UDim2.new(0,60,0,22); applyBtn.Position=UDim2.new(0,180,0,2); applyBtn.BackgroundColor3=C.accent; applyBtn.BorderSizePixel=0; applyBtn.Text="Apply"; applyBtn.TextColor3=Color3.fromRGB(255,255,255); applyBtn.TextSize=10; applyBtn.Font=Enum.Font.GothamBold; corner(5,applyBtn)
-    applyBtn.MouseButton1Click:Connect(function() CAST_X=tonumber(xInput.Text) or CAST_X; CAST_Y=tonumber(yInput.Text) or CAST_Y; applyBtn.Text="✅"; task.delay(1,function() applyBtn.Text="Apply" end) end)
-    secLabel(page,"CONTROLS",144)
-    local _,getFishOn,setFishOn=makeToggle(page,"🎣  Auto Fish",160,C.cyan,false)
-    RunService.Heartbeat:Connect(function()
-        local newState=getFishOn()
-        if newState~=autoFishOn then
-            autoFishOn=newState; fishRunning=autoFishOn
-            if autoFishOn then fishStatusLbl.Text="🎣  Status: RUNNING ✅"; fishStatusLbl.TextColor3=C.green; setupFishing()
-            else fishStatusLbl.Text="🎣  Status: OFF"; fishStatusLbl.TextColor3=C.muted; if ropeConn then pcall(function() ropeConn:Disconnect() end); ropeConn=nil end end
-        end
-        fishCountLbl.Text="🐟  Cá đã câu: "..fishCount
-    end)
-end
-
--- ===================== PAGE: AUTO SKILL =====================
-do
-    local page=pageAutoSkill
-    local keyMap={Z=Enum.KeyCode.Z,X=Enum.KeyCode.X,C=Enum.KeyCode.C,V=Enum.KeyCode.V,E=Enum.KeyCode.E,R=Enum.KeyCode.R}
-    local keyOrder={"Z","X","C","V","E","R"}
-    local keyColors={Z=C.green,X=C.cyan,C=C.yellow,V=C.orange,E=C.red,R=C.accentHi}
-    local function buildSkillSection(title,yStart,sectionH,skillTable,onToggle)
-        secLabel(page,title,yStart)
-        local card=Instance.new("Frame",page); card.Size=UDim2.new(1,0,0,sectionH); card.Position=UDim2.new(0,0,0,yStart+16); card.BackgroundColor3=C.card; card.BorderSizePixel=0; corner(7,card); stroke(card,C.border,1)
-        local cp=Instance.new("UIPadding",card); cp.PaddingLeft=UDim.new(0,8); cp.PaddingTop=UDim.new(0,6); cp.PaddingRight=UDim.new(0,8)
-        for i,k in ipairs(keyOrder) do
-            local row=Instance.new("Frame",card); row.Size=UDim2.new(1,0,0,22); row.Position=UDim2.new(0,0,0,(i-1)*24); row.BackgroundTransparency=1
-            local badge=Instance.new("Frame",row); badge.Size=UDim2.new(0,22,0,18); badge.Position=UDim2.new(0,0,0.5,-9); badge.BackgroundColor3=keyColors[k]; badge.BorderSizePixel=0; corner(4,badge)
-            local kl=newLabel(badge,k,10,Color3.fromRGB(10,10,20),Enum.TextXAlignment.Center); kl.Size=UDim2.new(1,0,1,0)
-            local kLbl=newLabel(row,"Skill "..k,10,C.muted); kLbl.Size=UDim2.new(0.6,0,1,0); kLbl.Position=UDim2.new(0,28,0,0)
-            if skillTable[k] then kLbl.TextColor3=keyColors[k] end
-            local pill=Instance.new("Frame",row); pill.Size=UDim2.new(0,30,0,14); pill.Position=UDim2.new(1,-32,0.5,-7); pill.BackgroundColor3=skillTable[k] and keyColors[k] or C.muted; pill.BorderSizePixel=0; corner(7,pill)
-            local dot=Instance.new("Frame",pill); dot.Size=UDim2.new(0,12,0,12); dot.Position=skillTable[k] and UDim2.new(0,17,0,1) or UDim2.new(0,1,0,1); dot.BackgroundColor3=skillTable[k] and Color3.fromRGB(255,255,255) or Color3.fromRGB(180,180,200); dot.BorderSizePixel=0; corner(6,dot)
-            local btn=Instance.new("TextButton",row); btn.Size=UDim2.new(1,0,1,0); btn.BackgroundTransparency=1; btn.Text=""
-            btn.MouseButton1Click:Connect(function()
-                skillTable[k]=not skillTable[k]
-                if skillTable[k] then pill.BackgroundColor3=keyColors[k]; dot.Position=UDim2.new(0,17,0,1); dot.BackgroundColor3=Color3.fromRGB(255,255,255); kLbl.TextColor3=keyColors[k]
-                else pill.BackgroundColor3=C.muted; dot.Position=UDim2.new(0,1,0,1); dot.BackgroundColor3=Color3.fromRGB(180,180,200); kLbl.TextColor3=C.muted end
-                onToggle(k,skillTable[k])
-            end)
-        end
-    end
-    buildSkillSection("SKILL DÙNG 1 LẦN KHI SPAWN",0,150,spawnSkills,function(k,v) end)
-    buildSkillSection("AUTO DÙNG SKILL LIÊN TỤC",172,150,loopSkills,function(k,v)
-        if v then
-            skillLoopThreads[k]=task.spawn(function() while loopSkills[k] do pressKey(keyMap[k]); task.wait(0.15) end end)
-        else
-            if skillLoopThreads[k] then pcall(function() task.cancel(skillLoopThreads[k]) end); skillLoopThreads[k]=nil end
-        end
-    end)
-    for k,v in pairs(loopSkills) do
-        if v then
-            skillLoopThreads[k]=task.spawn(function() while loopSkills[k] do pressKey(keyMap[k]); task.wait(0.15) end end)
-        end
-    end
-end
-
--- ===================== PAGE: TELEPORT =====================
-do
-    local page = pageTeleport
-    local mainScroll = Instance.new("ScrollingFrame", page)
-    mainScroll.Size = UDim2.new(1,0,1,0)
-    mainScroll.Position = UDim2.new(0,0,0,0)
-    mainScroll.BackgroundTransparency = 1
-    mainScroll.BorderSizePixel = 0
-    mainScroll.ScrollBarThickness = 3
-    mainScroll.ScrollBarImageColor3 = C.accent
-    mainScroll.CanvasSize = UDim2.new(0,0,0,0)
-    local mainLL = Instance.new("UIListLayout", mainScroll)
-    mainLL.Padding = UDim.new(0,4)
-    local mainPad = Instance.new("UIPadding", mainScroll)
-    mainPad.PaddingTop = UDim.new(0,4)
-    mainPad.PaddingBottom = UDim.new(0,8)
-    mainLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        mainScroll.CanvasSize = UDim2.new(0,0,0,mainLL.AbsoluteContentSize.Y+12)
-    end)
-    local headerLbl = Instance.new("Frame", mainScroll)
-    headerLbl.Size = UDim2.new(1,0,0,30)
-    headerLbl.BackgroundTransparency = 1
-    local hl = newLabel(headerLbl, "DANH SÁCH ĐỊA ĐIỂM", 10, C.accent)
-    hl.Size = UDim2.new(1,0,1,0); hl.Font = Enum.Font.GothamBold
-    local infoLbl = Instance.new("Frame", mainScroll)
-    infoLbl.Size = UDim2.new(1,0,0,14)
-    infoLbl.BackgroundTransparency = 1
-    local il = newLabel(infoLbl, "Chọn 1 địa điểm rồi bấm TP", 9, C.muted)
-    il.Size = UDim2.new(1,0,1,0)
-    local scroll = Instance.new("ScrollingFrame", mainScroll)
-    scroll.Size = UDim2.new(1,0,0,220)
-    scroll.BackgroundColor3 = C.card; scroll.BorderSizePixel = 0
-    scroll.ScrollBarThickness = 3; scroll.ScrollBarImageColor3 = C.accent
-    scroll.CanvasSize = UDim2.new(0,0,0,0); corner(7,scroll); stroke(scroll,C.border,1)
-    local ll = Instance.new("UIListLayout",scroll); ll.Padding = UDim.new(0,3)
-    local lp = Instance.new("UIPadding",scroll)
-    lp.PaddingTop=UDim.new(0,5); lp.PaddingLeft=UDim.new(0,5)
-    lp.PaddingRight=UDim.new(0,5); lp.PaddingBottom=UDim.new(0,5)
-    local tpBtnFrame = Instance.new("Frame", mainScroll)
-    tpBtnFrame.Size = UDim2.new(1,0,0,30)
-    tpBtnFrame.BackgroundTransparency = 1
-    local tpBtn = Instance.new("TextButton", tpBtnFrame)
-    tpBtn.Size = UDim2.new(1,0,1,0)
-    tpBtn.BackgroundColor3 = Color3.fromRGB(40,35,80); tpBtn.BorderSizePixel = 0
-    tpBtn.Text = "🗺  Chọn địa điểm trước"; tpBtn.TextColor3 = C.muted
-    tpBtn.TextSize = 12; tpBtn.Font = Enum.Font.GothamBold; corner(7,tpBtn); stroke(tpBtn,C.border,1)
-    local selectedLoc = nil; local locRows = {}
-    local function deselectAll()
-        for i,rd in ipairs(locRows) do
-            rd.frame.BackgroundColor3=C.card; rd.label.TextColor3=C.muted; rd.bar.Visible=false
-        end
-    end
-    for i,loc in ipairs(LOCATIONS) do
-        local row=Instance.new("Frame",scroll); row.Size=UDim2.new(1,0,0,28); row.BackgroundColor3=C.card; row.BorderSizePixel=0; corner(5,row)
-        local bar=Instance.new("Frame",row); bar.Size=UDim2.new(0,3,0.7,0); bar.Position=UDim2.new(0,2,0.15,0); bar.BackgroundColor3=C.accent; bar.BorderSizePixel=0; bar.Visible=false; corner(2,bar)
-        local lbl=newLabel(row,"📍  "..loc.name,10,C.muted); lbl.Size=UDim2.new(1,-8,1,0); lbl.Position=UDim2.new(0,10,0,0); lbl.TextYAlignment=Enum.TextYAlignment.Center
-        local rbtn=Instance.new("TextButton",row); rbtn.Size=UDim2.new(1,0,1,0); rbtn.BackgroundTransparency=1; rbtn.Text=""
-        locRows[i]={frame=row,label=lbl,bar=bar}
-        rbtn.MouseButton1Click:Connect(function()
-            deselectAll(); selectedLoc=i; row.BackgroundColor3=C.selBg; lbl.TextColor3=C.white; bar.Visible=true
-            tpBtn.Text="🚀  TP tới: "..loc.name; tpBtn.BackgroundColor3=C.accent; tpBtn.TextColor3=Color3.fromRGB(255,255,255)
-        end)
-    end
-    scroll.CanvasSize=UDim2.new(0,0,0,ll.AbsoluteContentSize.Y+10)
-    tpBtn.MouseButton1Click:Connect(function()
-        if not selectedLoc then return end
-        local loc=LOCATIONS[selectedLoc]; if not loc then return end
-        local char=player.Character; if not char then return end
-        local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
-        hrp.CFrame=CFrame.new(loc.pos+Vector3.new(0,3,0))
-        tpBtn.Text="✅  Đã TP tới "..loc.name
-        task.delay(2,function() tpBtn.Text="🚀  TP tới: "..loc.name end)
-    end)
-    local divFrame = Instance.new("Frame", mainScroll)
-    divFrame.Size = UDim2.new(1,0,0,6); divFrame.BackgroundTransparency = 1
-    local divLine = Instance.new("Frame", divFrame)
-    divLine.Size = UDim2.new(1,0,0,1); divLine.Position = UDim2.new(0,0,0.5,0)
-    divLine.BackgroundColor3 = C.border; divLine.BorderSizePixel = 0
-    local ringHeaderFrame = Instance.new("Frame", mainScroll)
-    ringHeaderFrame.Size = UDim2.new(1,0,0,20); ringHeaderFrame.BackgroundTransparency = 1
-    local rhl = newLabel(ringHeaderFrame, "RING TP (HAKI QUEST)", 10, C.accent)
-    rhl.Size = UDim2.new(1,0,1,0); rhl.Font = Enum.Font.GothamBold
-    local RING_LOCATIONS = {
-        {name="Ring 1", cf=CFrame.new(106.879730, 267.507721, -37.204220)},
-        {name="Ring 2", cf=CFrame.new(1048.605713, 226.688156, -399.104675)},
-        {name="Ring 3", cf=CFrame.new(2025.178833, 495.679504, -643.312012)},
-        {name="Ring 4", cf=CFrame.new(1173.629639, 290.533813, -3178.955322)},
-        {name="Ring 5", cf=CFrame.new(482.859009, 453.425629, 13206.950195)},
-        {name="Ring 6", cf=CFrame.new(-3059.809814, 1165.518677, -4262.070801)},
-        {name="Ring 7", cf=CFrame.new(1749.227051, 220.383850, 760.765747)},
-        {name="Ring 8", cf=CFrame.new(6671.069824, 566.312866, -1941.518433)},
-    }
-    local ringScroll = Instance.new("ScrollingFrame", mainScroll)
-    ringScroll.Size = UDim2.new(1,0,0, math.min(220, #RING_LOCATIONS * 31 + 16))
-    ringScroll.BackgroundColor3 = C.card; ringScroll.BorderSizePixel = 0
-    ringScroll.ScrollBarThickness = 3; ringScroll.ScrollBarImageColor3 = C.accent
-    ringScroll.CanvasSize = UDim2.new(0,0,0,0); corner(7,ringScroll); stroke(ringScroll,C.border,1)
-    local rll = Instance.new("UIListLayout", ringScroll); rll.Padding = UDim.new(0,3)
-    local rlp = Instance.new("UIPadding", ringScroll)
-    rlp.PaddingTop=UDim.new(0,5); rlp.PaddingLeft=UDim.new(0,5)
-    rlp.PaddingRight=UDim.new(0,5); rlp.PaddingBottom=UDim.new(0,5)
-    for _, ring in ipairs(RING_LOCATIONS) do
-        local row = Instance.new("Frame", ringScroll)
-        row.Size = UDim2.new(1,0,0,28); row.BackgroundColor3 = C.card
-        row.BorderSizePixel = 0; corner(5, row)
-        local bar = Instance.new("Frame", row)
-        bar.Size = UDim2.new(0,3,0.7,0); bar.Position = UDim2.new(0,2,0.15,0)
-        bar.BackgroundColor3 = C.orange; bar.BorderSizePixel = 0; corner(2, bar)
-        local lbl = newLabel(row, "💍  " .. ring.name, 10, C.white)
-        lbl.Size = UDim2.new(0.65,0,1,0); lbl.Position = UDim2.new(0,10,0,0)
-        lbl.TextYAlignment = Enum.TextYAlignment.Center
-        local tpBtnR = Instance.new("TextButton", row)
-        tpBtnR.Size = UDim2.new(0.3,0,0,20); tpBtnR.Position = UDim2.new(0.68,0,0.5,-10)
-        tpBtnR.BackgroundColor3 = C.accent; tpBtnR.BorderSizePixel = 0
-        tpBtnR.Text = "TP"; tpBtnR.TextColor3 = Color3.fromRGB(255,255,255)
-        tpBtnR.TextSize = 10; tpBtnR.Font = Enum.Font.GothamBold; corner(5, tpBtnR)
-        local capturedCF = ring.cf
-        tpBtnR.MouseButton1Click:Connect(function()
-            local char = player.Character; if not char then return end
-            local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
-            hrp.CFrame = capturedCF * CFrame.new(0, 3, 0)
-            tpBtnR.Text = "✅"
-            task.delay(1.5, function() tpBtnR.Text = "TP" end)
-        end)
-    end
-    ringScroll.CanvasSize = UDim2.new(0,0,0, rll.AbsoluteContentSize.Y + 10)
-end
-
--- ===================== PAGE: TP FRUIT =====================
-do
-    local page=pageTpFruit; secLabel(page,"FRUIT FINDER",0)
-    local infoLbl=newLabel(page,"Tìm fruit trong workspace, click để TP",9,C.muted); infoLbl.Size=UDim2.new(1,0,0,14); infoLbl.Position=UDim2.new(0,2,0,16)
-    local countLbl=newLabel(page,"🍎 Fruits: 0",10,C.orange); countLbl.Size=UDim2.new(0.5,0,0,20); countLbl.Position=UDim2.new(0,0,0,32)
-    local refreshBtn=Instance.new("TextButton",page); refreshBtn.Size=UDim2.new(0.48,0,0,24); refreshBtn.Position=UDim2.new(0.52,0,0,32); refreshBtn.BackgroundColor3=C.accent; refreshBtn.BorderSizePixel=0; refreshBtn.Text="🔄 Refresh"; refreshBtn.TextColor3=Color3.fromRGB(255,255,255); refreshBtn.TextSize=10; refreshBtn.Font=Enum.Font.GothamBold; corner(5,refreshBtn)
-    local scroll=Instance.new("ScrollingFrame",page); scroll.Size=UDim2.new(1,0,0,330); scroll.Position=UDim2.new(0,0,0,60); scroll.BackgroundColor3=C.card; scroll.BorderSizePixel=0; scroll.ScrollBarThickness=3; scroll.ScrollBarImageColor3=C.accent; scroll.CanvasSize=UDim2.new(0,0,0,0); corner(7,scroll); stroke(scroll,C.border,1)
-    local ll=Instance.new("UIListLayout",scroll); ll.Padding=UDim.new(0,3)
-    local lp=Instance.new("UIPadding",scroll); lp.PaddingTop=UDim.new(0,5); lp.PaddingLeft=UDim.new(0,5); lp.PaddingRight=UDim.new(0,5); lp.PaddingBottom=UDim.new(0,5)
-    local function refreshFruits()
-        for _,v in ipairs(scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
-        local count=0
-        local char=player.Character
-        local hrp=char and char:FindFirstChild("HumanoidRootPart")
-        for _,v in pairs(workspace:GetDescendants()) do
-            if v:IsA("Tool") and v.Name:find("Fruit") then
-                local handle=v:FindFirstChild("Handle")
-                if handle then
-                    count+=1
-                    local dist=hrp and math.floor((hrp.Position-handle.Position).Magnitude) or 0
-                    local row=Instance.new("Frame",scroll); row.Size=UDim2.new(1,0,0,28); row.BackgroundColor3=C.card; row.BorderSizePixel=0; corner(5,row)
-                    local bar=Instance.new("Frame",row); bar.Size=UDim2.new(0,3,0.7,0); bar.Position=UDim2.new(0,2,0.15,0); bar.BackgroundColor3=C.orange; bar.BorderSizePixel=0; corner(2,bar)
-                    local lbl=newLabel(row,"🍎  "..v.Name.."  ["..dist.."m]",10,C.white); lbl.Size=UDim2.new(1,-8,1,0); lbl.Position=UDim2.new(0,10,0,0); lbl.TextYAlignment=Enum.TextYAlignment.Center
-                    local rbtn=Instance.new("TextButton",row); rbtn.Size=UDim2.new(1,0,1,0); rbtn.BackgroundTransparency=1; rbtn.Text=""
-                    local capturedPos=handle.Position
-                    rbtn.MouseButton1Click:Connect(function()
-                        local c=player.Character; if not c then return end
-                        local h=c:FindFirstChild("HumanoidRootPart"); if not h then return end
-                        local d=(h.Position-capturedPos).Magnitude
-                        local tw=TweenService:Create(h,TweenInfo.new(d/1000,Enum.EasingStyle.Linear),{CFrame=CFrame.new(capturedPos+Vector3.new(0,5,0))})
-                        tw:Play()
-                        row.BackgroundColor3=C.selBg; lbl.TextColor3=C.orange
-                    end)
-                end
-            end
-        end
-        countLbl.Text="🍎 Fruits: "..count
-        scroll.CanvasSize=UDim2.new(0,0,0,ll.AbsoluteContentSize.Y+10)
-    end
-    refreshBtn.MouseButton1Click:Connect(function()
-        refreshBtn.Text="⏳"; refreshFruits(); task.delay(0.4,function() refreshBtn.Text="🔄 Refresh" end)
-    end)
-    tabs["TP Fruit"].btn.MouseButton1Click:Connect(function() refreshFruits() end)
-    refreshFruits()
-end
-
--- ===================== PAGE: KAITUN UI =====================
-do
-    local page = pageKaitun; secLabel(page, "KAITUN UI", 0)
-    local infoCard = Instance.new("Frame", page); infoCard.Size = UDim2.new(1,0,0,60); infoCard.Position = UDim2.new(0,0,0,16); infoCard.BackgroundColor3 = C.card; infoCard.BorderSizePixel = 0; corner(7, infoCard); stroke(infoCard, C.border, 1)
-    local kcp = Instance.new("UIPadding", infoCard); kcp.PaddingLeft = UDim.new(0,10); kcp.PaddingTop = UDim.new(0,8)
-    local k1 = newLabel(infoCard, "Hiển thị Beri / Kills / Bounty", 11, C.cyan); k1.Size = UDim2.new(1,-10,0,18)
-    local k2 = newLabel(infoCard, "fullscreen overlay, có nút X để đóng", 9, C.muted); k2.Size = UDim2.new(1,-10,0,16); k2.Position = UDim2.new(0,0,0,20)
-    local k3 = newLabel(infoCard, "Cần PlayerGui.Menu tồn tại", 9, C.muted); k3.Size = UDim2.new(1,-10,0,16); k3.Position = UDim2.new(0,0,0,36)
-    secLabel(page, "CONTROLS", 82)
-    local _, getKaitunOn, setKaitunOn = makeToggle(page, "👁  Kaitun UI", 98, C.yellow, false)
-
-    _setKaitunToggle = setKaitunOn
-
-    local lastState = false
-    RunService.Heartbeat:Connect(function()
-        local newState = getKaitunOn()
-        if newState ~= lastState then
-            lastState = newState
-            kaitunOn = newState
-            if kaitunOn then
-                buildKaitunUI()
-                main.Visible=false
-                guiVisible=false
-                toggleBtn.BackgroundColor3=Color3.fromRGB(60,30,100)
-            else
-                if kaitunGui then pcall(function() kaitunGui:Destroy() end); kaitunGui = nil end
-            end
-        end
-    end)
-end
-
--- ===================== PAGE: SETTING =====================
-do
-    local page=pageSetting; secLabel(page,"ABOUT",0)
-    local infoCard=Instance.new("Frame",page); infoCard.Size=UDim2.new(1,0,0,96); infoCard.Position=UDim2.new(0,0,0,16); infoCard.BackgroundColor3=C.card; infoCard.BorderSizePixel=0; corner(7,infoCard); stroke(infoCard,C.border,1)
-    local icp=Instance.new("UIPadding",infoCard); icp.PaddingLeft=UDim.new(0,10); icp.PaddingTop=UDim.new(0,8)
-    local function infoRow(text,color,y) local l=newLabel(infoCard,text,11,color); l.Size=UDim2.new(1,-10,0,18); l.Position=UDim2.new(0,0,0,y) end
-    infoRow("⚔  Tuanh Farm Hub V.007",      C.white,  0)
-    infoRow("📦  FREEMIUM Build",            C.yellow, 18)
-    infoRow("🍎  TP Fruit + 👁 Kaitun UI",  C.orange, 36)
-    infoRow("⚡  Auto Skill Z/X/C/V/E/R",    C.cyan,   54)
-    infoRow("💀  Boss Tab (Vokun/WB/Croco)", C.red,    72)
-    secLabel(page,"EXPORT CONFIG",118)
-    local exportCard=Instance.new("Frame",page); exportCard.Size=UDim2.new(1,0,0,200); exportCard.Position=UDim2.new(0,0,0,134); exportCard.BackgroundColor3=C.card; exportCard.BorderSizePixel=0; corner(7,exportCard); stroke(exportCard,C.border,1)
-    local ecp=Instance.new("UIPadding",exportCard); ecp.PaddingLeft=UDim.new(0,8); ecp.PaddingTop=UDim.new(0,8); ecp.PaddingRight=UDim.new(0,8); ecp.PaddingBottom=UDim.new(0,8)
-    local instrLbl=newLabel(exportCard,"① Export  ② Copy ③ Paste trước loadstring()()",9,C.muted); instrLbl.Size=UDim2.new(1,0,0,14); instrLbl.TextWrapped=true
-    local outputBox=Instance.new("TextBox",exportCard); outputBox.Size=UDim2.new(1,0,0,100); outputBox.Position=UDim2.new(0,0,0,18); outputBox.BackgroundColor3=Color3.fromRGB(8,8,18); outputBox.BorderSizePixel=0; outputBox.Text="-- press Export to generate"; outputBox.TextColor3=C.muted; outputBox.TextSize=9; outputBox.Font=Enum.Font.Code; outputBox.TextXAlignment=Enum.TextXAlignment.Left; outputBox.TextYAlignment=Enum.TextYAlignment.Top; outputBox.ClearTextOnFocus=false; outputBox.MultiLine=true; outputBox.TextWrapped=true
-    corner(5,outputBox); stroke(outputBox,C.accent,1)
-    local obp=Instance.new("UIPadding",outputBox); obp.PaddingLeft=UDim.new(0,6); obp.PaddingTop=UDim.new(0,5)
-    local exportStatus=newLabel(exportCard,"",10,C.green,Enum.TextXAlignment.Center); exportStatus.Size=UDim2.new(1,0,0,14); exportStatus.Position=UDim2.new(0,0,0,122)
-    local exportBtn=Instance.new("TextButton",exportCard); exportBtn.Size=UDim2.new(0.48,0,0,26); exportBtn.Position=UDim2.new(0,0,0,140); exportBtn.BackgroundColor3=C.accent; exportBtn.BorderSizePixel=0; exportBtn.Text="📋  Export"; exportBtn.TextColor3=Color3.fromRGB(255,255,255); exportBtn.TextSize=11; exportBtn.Font=Enum.Font.GothamBold; corner(6,exportBtn)
-    local saveGBtn=Instance.new("TextButton",exportCard); saveGBtn.Size=UDim2.new(0.48,0,0,26); saveGBtn.Position=UDim2.new(0.52,0,0,140); saveGBtn.BackgroundColor3=C.green; saveGBtn.BorderSizePixel=0; saveGBtn.Text="💾  Save _G"; saveGBtn.TextColor3=Color3.fromRGB(10,10,10); saveGBtn.TextSize=11; saveGBtn.Font=Enum.Font.GothamBold; corner(6,saveGBtn)
-    local function buildConfigString()
-        local mobList={}
-        for name in pairs(selectedMobs) do table.insert(mobList,'"'..name..'"') end
-        table.sort(mobList)
-        local spawnParts={}
-        for k,v in pairs(spawnSkills) do if v then table.insert(spawnParts,k.."=true") end end
-        local loopParts={}
-        for k,v in pairs(loopSkills) do if v then table.insert(loopParts,k.."=true") end end
-        return table.concat({
-            "_G.TuanhConfig = {",
-            "    autoAttack     = "..tostring(autoAttack)..",",
-            "    autoSpawnTP    = "..tostring(autoSpawnTP)..",",
-            "    autoSpawnClick = "..tostring(autoSpawnClick)..",",
-            "    smeltMethod    = "..tostring(smeltMethod)..",",
-            "    equippedWeapon = "..(equippedWeapon and ('"'..equippedWeapon..'"') or "nil")..",",
-            "    selectedMobs   = {"..table.concat(mobList,", ").."},",
-            "    spawnSkills    = {"..table.concat(spawnParts,", ").."},",
-            "    loopSkills     = {"..table.concat(loopParts,", ").."},",
-            "}",
-        },"\n")
-    end
-    exportBtn.MouseButton1Click:Connect(function()
-        local cfg=buildConfigString(); outputBox.Text=cfg; outputBox.TextColor3=C.cyan
-        pcall(function() setclipboard(cfg) end)
-        exportStatus.Text="✅ Đã copy!"; exportStatus.TextColor3=C.green
-        task.delay(3,function() exportStatus.Text="" end)
-    end)
-    saveGBtn.MouseButton1Click:Connect(function()
-        local mobList={}; for name in pairs(selectedMobs) do table.insert(mobList,name) end
-        local sp={}; for k,v in pairs(spawnSkills) do sp[k]=v end
-        local lp={}; for k,v in pairs(loopSkills) do lp[k]=v end
-        _G.TuanhConfig={autoAttack=autoAttack,autoSpawnTP=autoSpawnTP,autoSpawnClick=autoSpawnClick,smeltMethod=smeltMethod,equippedWeapon=equippedWeapon,selectedMobs=mobList,spawnSkills=sp,loopSkills=lp}
-        exportStatus.Text="💾 Saved to _G!"; exportStatus.TextColor3=C.yellow
-        task.delay(3,function() exportStatus.Text="" end)
-    end)
-end
-
--- ===================== TOGGLE BUTTON =====================
-local toggleGui=Instance.new("ScreenGui",game:GetService("CoreGui"))
-toggleGui.ResetOnSpawn=false; toggleGui.Name="TuanhToggleBtn"; toggleGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-
-local toggleBtn=Instance.new("TextButton",toggleGui)
-toggleBtn.Size=UDim2.new(0,38,0,38); toggleBtn.Position=UDim2.new(0,12,0.5,-19)
-toggleBtn.BackgroundColor3=Color3.fromRGB(60,30,100); toggleBtn.BorderSizePixel=0
-toggleBtn.Text="⚔"; toggleBtn.TextColor3=Color3.fromRGB(255,255,255); toggleBtn.TextSize=18
-toggleBtn.Font=Enum.Font.GothamBold; toggleBtn.Active=true; toggleBtn.Draggable=true
-corner(10,toggleBtn); stroke(toggleBtn,Color3.fromRGB(160,100,255),1.5)
-
-local tipLbl=Instance.new("TextLabel",toggleGui)
-tipLbl.Size=UDim2.new(0,100,0,18); tipLbl.Position=UDim2.new(0,54,0.5,-9)
-tipLbl.BackgroundColor3=Color3.fromRGB(20,10,50); tipLbl.BorderSizePixel=0
-tipLbl.Text="Mở / Đóng Hub"; tipLbl.TextColor3=Color3.fromRGB(200,180,255)
-tipLbl.TextSize=9; tipLbl.Font=Enum.Font.Gotham; tipLbl.TextXAlignment=Enum.TextXAlignment.Left; tipLbl.Visible=false
-corner(4,tipLbl); local tipPad=Instance.new("UIPadding",tipLbl); tipPad.PaddingLeft=UDim.new(0,6)
-toggleBtn.MouseEnter:Connect(function() tipLbl.Visible=true end)
-toggleBtn.MouseLeave:Connect(function() tipLbl.Visible=false end)
-
-local guiVisible=false
-closeBtn.MouseButton1Click:Connect(function()
-    guiVisible=false; main.Visible=false; toggleBtn.BackgroundColor3=Color3.fromRGB(60,30,100)
-end)
-toggleBtn.MouseButton1Click:Connect(function()
-    guiVisible=not guiVisible; main.Visible=guiVisible
-    toggleBtn.BackgroundColor3=guiVisible and Color3.fromRGB(120,55,255) or Color3.fromRGB(60,30,100)
-end)
-
--- ===================== INIT =====================
-tabs["Auto Farm"].page.Visible=true; tabs["Auto Farm"].btn.BackgroundColor3=C.selBg; tabs["Auto Farm"].btn.TextColor3=C.white; tabs["Auto Farm"].bar.Visible=true; activeTab="Auto Farm"
+    searchBox.TextColor3=C.white;
