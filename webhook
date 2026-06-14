@@ -1126,16 +1126,14 @@ do
 
     secLabel(page, "AUTO SAM QUEST", 0)
 
-    -- Info card
     local infoCard = Instance.new("Frame", page)
     infoCard.Size = UDim2.new(1,0,0,68); infoCard.Position = UDim2.new(0,0,0,16)
     infoCard.BackgroundColor3 = C.card; infoCard.BorderSizePixel = 0; corner(7, infoCard); stroke(infoCard, C.border, 1)
     local icp = Instance.new("UIPadding", infoCard); icp.PaddingLeft = UDim.new(0,10); icp.PaddingTop = UDim.new(0,8)
     local i1 = newLabel(infoCard, "📋  Tự động nộp quest Sam khi sẵn sàng", 11, C.cyan); i1.Size = UDim2.new(1,-10,0,18)
     local i2 = newLabel(infoCard, "TP đến Sam NPC → Click → Chọn Option → Leave", 9, C.muted); i2.Size = UDim2.new(1,-10,0,16); i2.Position = UDim2.new(0,0,0,20)
-    local i3 = newLabel(infoCard, "Cần: workspace.Ignore.NPCs.DailyQuest.Sam", 9, C.muted); i3.Size = UDim2.new(1,-10,0,16); i3.Position = UDim2.new(0,0,0,36)
+    local i3 = newLabel(infoCard, "Claim khi có ít nhất 1 slot sẵn sàng (A/B)", 9, C.yellow); i3.Size = UDim2.new(1,-10,0,16); i3.Position = UDim2.new(0,0,0,36)
 
-    -- Status card
     local statusCard = Instance.new("Frame", page)
     statusCard.Size = UDim2.new(1,0,0,44); statusCard.Position = UDim2.new(0,0,0,90)
     statusCard.BackgroundColor3 = C.card; statusCard.BorderSizePixel = 0; corner(7, statusCard); stroke(statusCard, C.border, 1)
@@ -1146,23 +1144,29 @@ do
     secLabel(page, "CONTROLS", 140)
     local _, getSam, setSam = makeToggle(page, "📋  Auto Sam Quest", 156, C.green, false)
 
-    -- Nút nộp quest thủ công
     local manualBtn = Instance.new("TextButton", page)
     manualBtn.Size = UDim2.new(1,0,0,30); manualBtn.Position = UDim2.new(0,0,0,192)
     manualBtn.BackgroundColor3 = C.cyan; manualBtn.BorderSizePixel = 0
     manualBtn.Text = "▶  Nộp Quest Ngay (Thủ Công)"; manualBtn.TextColor3 = Color3.fromRGB(10,10,10)
     manualBtn.TextSize = 11; manualBtn.Font = Enum.Font.GothamBold; corner(7, manualBtn)
     manualBtn.MouseButton1Click:Connect(function()
-        task.spawn(function()
-            doQuestTurnIn(samStatusLbl)
-        end)
+        task.spawn(function() doQuestTurnIn(samStatusLbl) end)
     end)
 
-    -- Logic Auto Sam: lắng nghe SamTimer
+    -- Hàm check có thể claim không
+    local function samIsClaimable(text)
+        if text:find("Ready!") then return true end
+        local current, total = text:match("%((%d+)/(%d+)%)")
+        if current and total then
+            return tonumber(current) >= 1
+        end
+        return false
+    end
+
+    -- Cập nhật hiển thị timer
     task.spawn(function()
         while true do
             task.wait(0.5)
-            -- Cập nhật hiển thị timer
             pcall(function()
                 local timerLbl = player.PlayerGui.Menu.Frame.MenuList.Stats.Frame.A.Sam.SamTimer
                 samTimerLbl.Text = "⏳ Timer: " .. timerLbl.Text
@@ -1171,6 +1175,8 @@ do
     end)
 
     local samTimerConn = nil
+    local isClaiming = false  -- tránh claim 2 lần cùng lúc
+
     task.spawn(function()
         while true do
             task.wait(0.3)
@@ -1178,33 +1184,41 @@ do
             autoSamOn = on
             if on then
                 samStatusLbl.Text = "🟢 Đang theo dõi..."; samStatusLbl.TextColor3 = C.green
-                -- Check ngay lập tức khi bật
+                -- Check ngay khi bật
                 pcall(function()
                     local timerLbl = player.PlayerGui.Menu.Frame.MenuList.Stats.Frame.A.Sam.SamTimer
-                    if timerLbl.Text:find("Ready!") then
+                    if samIsClaimable(timerLbl.Text) and not isClaiming then
+                        isClaiming = true
                         samStatusLbl.Text = "🚀 Đang nộp quest..."; samStatusLbl.TextColor3 = C.yellow
-                        doQuestTurnIn(samStatusLbl)
+                        task.spawn(function()
+                            doQuestTurnIn(samStatusLbl)
+                            isClaiming = false
+                        end)
                     end
                 end)
-                -- Kết nối theo dõi thay đổi nếu chưa
+                -- Kết nối theo dõi nếu chưa có
                 if not samTimerConn then
                     pcall(function()
                         local timerLbl = player.PlayerGui.Menu.Frame.MenuList.Stats.Frame.A.Sam.SamTimer
                         samTimerConn = timerLbl:GetPropertyChangedSignal("Text"):Connect(function()
-                            if not autoSamOn then return end
-                            if timerLbl.Text:find("Ready!") then
+                            if not autoSamOn or isClaiming then return end
+                            if samIsClaimable(timerLbl.Text) then
+                                isClaiming = true
                                 samStatusLbl.Text = "🚀 Quest Ready! Đang nộp..."; samStatusLbl.TextColor3 = C.yellow
-                                task.spawn(function() doQuestTurnIn(samStatusLbl) end)
+                                task.spawn(function()
+                                    doQuestTurnIn(samStatusLbl)
+                                    isClaiming = false
+                                end)
                             end
                         end)
                     end)
                 end
             else
-                -- Khi tắt: disconnect và reset
                 if samTimerConn then
                     pcall(function() samTimerConn:Disconnect() end)
                     samTimerConn = nil
                 end
+                isClaiming = false
                 samStatusLbl.Text = "● Idle - Đã tắt"; samStatusLbl.TextColor3 = C.muted
             end
         end
