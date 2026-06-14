@@ -618,7 +618,7 @@ local function clickBtn(btn)
     local pos = btn.AbsolutePosition
     local size = btn.AbsoluteSize
     local x = pos.X + size.X / 2
-    local y = pos.Y + size.Y / 2 + 45
+    local y = pos.Y + size.Y / 2 + 47
     VIM:SendMouseMoveEvent(x, y, game)
     task.wait(0.05)
     VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
