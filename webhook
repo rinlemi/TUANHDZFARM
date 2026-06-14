@@ -1226,60 +1226,68 @@ do
     local hopConn=nil
     local chestLoopThread=nil
 
-    -- FIX: Vòng lặp chủ động tìm và lấy chest mỗi 2 giây
+    local function tweenToChest(chest)
+        local hrp=player.Character and player.Character:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+        local ok,targetPos=pcall(function() return chest:GetPivot().Position end)
+        if not ok or not chest.Parent then return end
+        local startPos=hrp.Position
+        hrp.CFrame=CFrame.new(Vector3.new(startPos.X,startPos.Y+400,startPos.Z)); task.wait(0.1)
+        if not chest.Parent then return end
+        hrp.CFrame=CFrame.new(targetPos+Vector3.new(0,3,0)); task.wait(0.1)
+    end
+
     local function startChestLoop()
         if chestLoopThread then return end
-        chestLoopThread = task.spawn(function()
+        chestLoopThread=task.spawn(function()
             while autoChestOn do
-                local chests = {}
+                local chests={}
                 for _,v in pairs(workspace:GetDescendants()) do
                     if v:IsA("Model") and v.Name=="TreasureChest" then
-                        table.insert(chests, v)
+                        table.insert(chests,v)
                     end
                 end
                 for _,chest in ipairs(chests) do
                     if not autoChestOn then break end
                     if chest and chest.Parent then
                         tweenToChest(chest)
-                        chestCount += 1
-                        chestCountLbl.Text = "📦  Chests Collected: " .. chestCount
-                        task.wait(0.5)
+                        chestCount+=1
+                        chestCountLbl.Text="📦  Chests Collected: "..chestCount
+                        task.wait(0.1)
                     end
                 end
-                task.wait(2)
+                task.wait(0.5)
             end
-            chestLoopThread = nil
+            chestLoopThread=nil
         end)
     end
 
     local function stopChestLoop()
         if chestLoopThread then
             pcall(function() task.cancel(chestLoopThread) end)
-            chestLoopThread = nil
+            chestLoopThread=nil
         end
     end
 
-    -- FIX: Theo dõi chest mới spawn khi đang bật
-    local spawnConn = workspace.DescendantAdded:Connect(function(obj)
+    workspace.DescendantAdded:Connect(function(obj)
         if obj:IsA("Model") and obj.Name=="TreasureChest" and autoChestOn then
-            task.wait(0.3)
+            task.wait(0.1)
             tweenToChest(obj)
-            chestCount += 1
-            chestCountLbl.Text = "📦  Chests Collected: " .. chestCount
+            chestCount+=1
+            chestCountLbl.Text="📦  Chests Collected: "..chestCount
         end
     end)
 
     task.spawn(function()
         while true do
             task.wait(0.5)
-            local chestOn = getChest()
-            autoChestOn = chestOn
+            local chestOn=getChest()
+            autoChestOn=chestOn
             if chestOn then
                 chestStatusLbl.Text="🎁  Status: ACTIVE ✅"; chestStatusLbl.TextColor3=C.green
-                startChestLoop()  -- FIX: Bật vòng lặp chủ động
+                startChestLoop()
             else
                 chestStatusLbl.Text="🎁  Status: OFF"; chestStatusLbl.TextColor3=C.muted
-                stopChestLoop()   -- FIX: Dừng vòng lặp khi tắt
+                stopChestLoop()
             end
             local hopOn=getHop()
             if hopOn and not hopConn then
