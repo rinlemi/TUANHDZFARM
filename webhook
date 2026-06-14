@@ -1224,22 +1224,68 @@ do
     local _,getHop,setHop=makeToggle(page,"🌐  Auto Server Hop",140,C.cyan,false)
     local chestCount=0
     local hopConn=nil
+    local chestLoopThread=nil
+
+    -- FIX: Vòng lặp chủ động tìm và lấy chest mỗi 2 giây
+    local function startChestLoop()
+        if chestLoopThread then return end
+        chestLoopThread = task.spawn(function()
+            while autoChestOn do
+                local chests = {}
+                for _,v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("Model") and v.Name=="TreasureChest" then
+                        table.insert(chests, v)
+                    end
+                end
+                for _,chest in ipairs(chests) do
+                    if not autoChestOn then break end
+                    if chest and chest.Parent then
+                        tweenToChest(chest)
+                        chestCount += 1
+                        chestCountLbl.Text = "📦  Chests Collected: " .. chestCount
+                        task.wait(0.5)
+                    end
+                end
+                task.wait(2)
+            end
+            chestLoopThread = nil
+        end)
+    end
+
+    local function stopChestLoop()
+        if chestLoopThread then
+            pcall(function() task.cancel(chestLoopThread) end)
+            chestLoopThread = nil
+        end
+    end
+
+    -- FIX: Theo dõi chest mới spawn khi đang bật
+    local spawnConn = workspace.DescendantAdded:Connect(function(obj)
+        if obj:IsA("Model") and obj.Name=="TreasureChest" and autoChestOn then
+            task.wait(0.3)
+            tweenToChest(obj)
+            chestCount += 1
+            chestCountLbl.Text = "📦  Chests Collected: " .. chestCount
+        end
+    end)
+
     task.spawn(function()
         while true do
             task.wait(0.5)
-            local chestOn=getChest()
-            autoChestOn=chestOn
+            local chestOn = getChest()
+            autoChestOn = chestOn
             if chestOn then
                 chestStatusLbl.Text="🎁  Status: ACTIVE ✅"; chestStatusLbl.TextColor3=C.green
+                startChestLoop()  -- FIX: Bật vòng lặp chủ động
             else
                 chestStatusLbl.Text="🎁  Status: OFF"; chestStatusLbl.TextColor3=C.muted
+                stopChestLoop()   -- FIX: Dừng vòng lặp khi tắt
             end
             local hopOn=getHop()
             if hopOn and not hopConn then
                 hopLbl.Text="🌐  Server Hop: Watching"; hopLbl.TextColor3=C.cyan
                 hopConn=workspace.DescendantAdded:Connect(function(obj)
                     if obj:IsA("Model") and obj.Name=="TreasureChest" then
-                        chestCount+=1; chestCountLbl.Text="📦  Chests Collected: "..chestCount
                         task.wait(5)
                         if getHop() then
                             hopLbl.Text="🌐  Server Hopping..."; hopLbl.TextColor3=C.yellow
