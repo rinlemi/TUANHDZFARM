@@ -1,5 +1,5 @@
--- AUTO MAILBOX UI
--- Đọc method từ script gốc, wrap thêm UI để nhập recipient + item + số lượng
+-- AUTO MAILBOX UI + KEY SYSTEM
+-- Key HWID system tích hợp
 
 repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
@@ -7,6 +7,121 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 repeat task.wait() until LocalPlayer
+
+-- ===================== KEY SYSTEM =====================
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbxGHUQ3uNF9zYeW8vyvVWI2zyq9U0mQnu88oln0o6rPqvmBRBhCXL_RI9g2buBqr3OM/exec"
+
+local function getHWID()
+    return game:GetService("RbxAnalyticsService"):GetClientId()
+end
+
+local function checkKey(key)
+    local hwid = getHWID()
+    local url  = DEPLOY_URL .. "?key=" .. key .. "&hwid=" .. hwid
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok then return false, "Khong ket noi duoc server" end
+    if res == "SUCCESS"            then return true,  "OK" end
+    if res == "HWID_MISMATCH"      then return false, "Key nay da dung tren may khac!" end
+    if res == "HWID_LIMIT_REACHED" then return false, "Key da day slot may!" end
+    if res == "INVALID_KEY"        then return false, "Key khong hop le!" end
+    return false, "Loi: " .. tostring(res)
+end
+
+local keyGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+keyGui.ResetOnSpawn = false
+keyGui.Name = "TuanhMailboxKeySystem"
+
+local _bg = Instance.new("Frame", keyGui)
+_bg.Size=UDim2.new(1,0,1,0); _bg.BackgroundColor3=Color3.fromRGB(0,0,0)
+_bg.BackgroundTransparency=0.4; _bg.BorderSizePixel=0
+
+local _box = Instance.new("Frame", keyGui)
+_box.Size=UDim2.new(0,340,0,200); _box.Position=UDim2.new(0.5,-170,0.5,-100)
+_box.BackgroundColor3=Color3.fromRGB(12,12,22); _box.BorderSizePixel=0
+local _bc=Instance.new("UICorner",_box); _bc.CornerRadius=UDim.new(0,10)
+local _bs=Instance.new("UIStroke",_box); _bs.Color=Color3.fromRGB(120,55,255); _bs.Thickness=1.5
+
+local _title=Instance.new("TextLabel",_box)
+_title.Size=UDim2.new(1,0,0,36); _title.BackgroundColor3=Color3.fromRGB(120,55,255)
+_title.BorderSizePixel=0; _title.Text="📬  AUTO MAILBOX - KEY SYSTEM"
+_title.TextColor3=Color3.fromRGB(255,255,255); _title.TextSize=12; _title.Font=Enum.Font.GothamBold
+local _tc=Instance.new("UICorner",_title); _tc.CornerRadius=UDim.new(0,10)
+local _tf=Instance.new("Frame",_title)
+_tf.Size=UDim2.new(1,0,0.5,0); _tf.Position=UDim2.new(0,0,0.5,0)
+_tf.BackgroundColor3=Color3.fromRGB(120,55,255); _tf.BorderSizePixel=0
+
+-- Gradient title bar
+local _tg=Instance.new("UIGradient",_title)
+_tg.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(145,65,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(75,20,200))}); _tg.Rotation=90
+
+local _statusLbl=Instance.new("TextLabel",_box)
+_statusLbl.Size=UDim2.new(1,-20,0,20); _statusLbl.Position=UDim2.new(0,10,0,44)
+_statusLbl.BackgroundTransparency=1; _statusLbl.Text="Nhap key de tiep tuc..."
+_statusLbl.TextColor3=Color3.fromRGB(100,100,130); _statusLbl.TextSize=11; _statusLbl.Font=Enum.Font.Gotham
+_statusLbl.TextXAlignment=Enum.TextXAlignment.Center
+
+local _input=Instance.new("TextBox",_box)
+_input.Size=UDim2.new(1,-20,0,32); _input.Position=UDim2.new(0,10,0,72)
+_input.BackgroundColor3=Color3.fromRGB(26,26,46); _input.BorderSizePixel=0
+_input.PlaceholderText="Nhap key cua ban..."; _input.Text=""
+_input.TextColor3=Color3.fromRGB(230,230,245); _input.PlaceholderColor3=Color3.fromRGB(100,100,130)
+_input.TextSize=12; _input.Font=Enum.Font.GothamBold; _input.ClearTextOnFocus=false
+local _ic=Instance.new("UICorner",_input); _ic.CornerRadius=UDim.new(0,6)
+local _is=Instance.new("UIStroke",_input); _is.Color=Color3.fromRGB(120,55,255); _is.Thickness=1
+local _ip2=Instance.new("UIPadding",_input); _ip2.PaddingLeft=UDim.new(0,8)
+
+local _submitBtn=Instance.new("TextButton",_box)
+_submitBtn.Size=UDim2.new(1,-20,0,32); _submitBtn.Position=UDim2.new(0,10,0,114)
+_submitBtn.BackgroundColor3=Color3.fromRGB(120,55,255); _submitBtn.BorderSizePixel=0
+_submitBtn.Text="XAC NHAN KEY"; _submitBtn.TextColor3=Color3.fromRGB(255,255,255)
+_submitBtn.TextSize=12; _submitBtn.Font=Enum.Font.GothamBold
+local _sc=Instance.new("UICorner",_submitBtn); _sc.CornerRadius=UDim.new(0,6)
+
+local _hwidLbl=Instance.new("TextLabel",_box)
+_hwidLbl.Size=UDim2.new(1,-20,0,16); _hwidLbl.Position=UDim2.new(0,10,0,156)
+_hwidLbl.BackgroundTransparency=1; _hwidLbl.Text="HWID: "..getHWID()
+_hwidLbl.TextColor3=Color3.fromRGB(60,60,80); _hwidLbl.TextSize=8; _hwidLbl.Font=Enum.Font.Gotham
+_hwidLbl.TextXAlignment=Enum.TextXAlignment.Center; _hwidLbl.TextTruncate=Enum.TextTruncate.AtEnd
+
+-- Copy HWID button
+local _copyHwidBtn=Instance.new("TextButton",_box)
+_copyHwidBtn.Size=UDim2.new(1,-20,0,18); _copyHwidBtn.Position=UDim2.new(0,10,0,176)
+_copyHwidBtn.BackgroundColor3=Color3.fromRGB(30,20,60); _copyHwidBtn.BorderSizePixel=0
+_copyHwidBtn.Text="📋  Copy HWID"; _copyHwidBtn.TextColor3=Color3.fromRGB(160,100,255)
+_copyHwidBtn.TextSize=9; _copyHwidBtn.Font=Enum.Font.GothamBold
+local _chc=Instance.new("UICorner",_copyHwidBtn); _chc.CornerRadius=UDim.new(0,4)
+_copyHwidBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard(getHWID()) end)
+    _copyHwidBtn.Text="✅  Đã copy!"
+    task.delay(2, function() _copyHwidBtn.Text="📋  Copy HWID" end)
+end)
+
+local _verified=false
+local function _verify()
+    local key=_input.Text
+    if key=="" then _statusLbl.Text="Hay nhap key!"; _statusLbl.TextColor3=Color3.fromRGB(255,80,80); return end
+    _submitBtn.Text="Dang kiem tra..."; _submitBtn.BackgroundColor3=Color3.fromRGB(60,30,120)
+    _statusLbl.Text="Connecting to server..."; _statusLbl.TextColor3=Color3.fromRGB(255,200,60)
+    local ok,msg=checkKey(key)
+    if ok then
+        _statusLbl.Text="Key hop le! Dang tai..."; _statusLbl.TextColor3=Color3.fromRGB(80,255,140)
+        task.wait(1); keyGui:Destroy(); _verified=true
+    else
+        _statusLbl.Text=msg; _statusLbl.TextColor3=Color3.fromRGB(255,80,80)
+        _submitBtn.Text="XAC NHAN KEY"; _submitBtn.BackgroundColor3=Color3.fromRGB(120,55,255)
+    end
+end
+_submitBtn.MouseButton1Click:Connect(_verify)
+_input.FocusLost:Connect(function(enter) if enter then _verify() end end)
+
+-- Tự động verify nếu đã có key trong _G
+if _G.MailboxKey and _G.MailboxKey ~= "" then
+    local ok = checkKey(_G.MailboxKey)
+    if ok then keyGui:Destroy(); _verified = true end
+end
+
+repeat task.wait(0.1) until _verified
+-- ===================== END KEY SYSTEM =====================
 
 -- ===================== SETUP =====================
 local SharedModules = ReplicatedStorage:WaitForChild("SharedModules")
@@ -78,12 +193,10 @@ local function getInventory()
     return replica.Data.Inventory
 end
 
--- Tìm item trong inventory theo tên (seed, fruit, pet)
 local function findItems(itemName, inv)
     local results = {}
     local searchNorm = string.lower(itemName:gsub("%s+",""))
 
-    -- Scan Seeds
     if type(inv.Seeds) == "table" then
         for seedKey, seedEntry in pairs(inv.Seeds) do
             local keyNorm = string.lower(tostring(seedKey):gsub("%s+",""))
@@ -101,7 +214,6 @@ local function findItems(itemName, inv)
         end
     end
 
-    -- Scan HarvestedFruits
     if type(inv.HarvestedFruits) == "table" then
         for itemKey, entry in pairs(inv.HarvestedFruits) do
             if type(entry) == "table" and entry.Id ~= nil then
@@ -114,7 +226,6 @@ local function findItems(itemName, inv)
         end
     end
 
-    -- Scan Pets
     if type(inv.Pets) == "table" then
         for itemKey, entry in pairs(inv.Pets) do
             if type(entry) == "table" and entry.Id ~= nil then
@@ -142,7 +253,6 @@ local function sendBatch(userId, payload, note)
     return false, tostring(message or "Gửi thất bại")
 end
 
--- Gửi nhiều lần nếu số lượng > 20
 local function sendAll(userId, items, totalNeeded, note, statusCb)
     local sent = 0
     local payload = {}
@@ -347,7 +457,6 @@ end)
 sendBtn.MouseButton1Click:Connect(function()
     if isSending then return end
 
-    -- Validate
     if not verifiedUserId then
         statusLbl.Text = "❌ Xác nhận người nhận trước!"; statusLbl.TextColor3 = C.red; return
     end
@@ -368,7 +477,6 @@ sendBtn.MouseButton1Click:Connect(function()
     statusLbl.TextColor3 = C.yellow
 
     task.spawn(function()
-        -- Đọc inventory
         statusLbl.Text = "📂 Đang đọc inventory..."
         local inv = getInventory()
         if not inv then
@@ -376,7 +484,6 @@ sendBtn.MouseButton1Click:Connect(function()
             isSending = false; sendBtn.Text = "📬  GỬI NGAY"; sendBtn.BackgroundColor3 = C.green; return
         end
 
-        -- Tìm item
         statusLbl.Text = "🔍 Đang tìm item: " .. itemName
         local items = findItems(itemName, inv)
         if #items == 0 then
@@ -384,7 +491,6 @@ sendBtn.MouseButton1Click:Connect(function()
             isSending = false; sendBtn.Text = "📬  GỬI NGAY"; sendBtn.BackgroundColor3 = C.green; return
         end
 
-        -- Tính tổng available
         local totalAvailable = 0
         for _, item in ipairs(items) do totalAvailable += item.Available end
         local toSend = math.min(qty, totalAvailable)
@@ -394,9 +500,7 @@ sendBtn.MouseButton1Click:Connect(function()
             task.wait(1.5)
         end
 
-        -- Gửi
-        local batches = math.ceil(toSend / 20)
-        statusLbl.Text = "📦 Cần gửi " .. toSend .. " item (1 batch)..."
+        statusLbl.Text = "📦 Cần gửi " .. toSend .. " item..."
         statusLbl.TextColor3 = C.cyan
 
         local sent, err = sendAll(verifiedUserId, items, toSend, note, function(msg)
