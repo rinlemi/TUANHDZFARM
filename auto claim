@@ -1,0 +1,40 @@
+-- AUTO CLAIM MAILBOX
+local Players = game:GetService("Players")
+local VIM = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+local function clickBtn(btn)
+    local pos = btn.AbsolutePosition
+    local size = btn.AbsoluteSize
+    local x = pos.X + size.X / 2
+    local y = pos.Y + size.Y / 2 + 36
+    VIM:SendMouseMoveEvent(x, y, game)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+end
+
+local function claimAll()
+    local claimed = 0
+    for _, obj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+        if obj:IsA("TextButton") and obj.Visible then
+            local txt = string.lower(obj.Text or "")
+            if txt == "claim" then
+                clickBtn(obj)
+                claimed += 1
+                task.wait(0.5)
+            end
+        end
+    end
+    return claimed
+end
+
+-- Chạy liên tục, mỗi 3s scan 1 lần
+while true do
+    local n = claimAll()
+    if n > 0 then
+        print("[AutoClaim] Đã claim " .. n .. " item")
+    end
+    task.wait(3)
+end
