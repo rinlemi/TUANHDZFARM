@@ -144,56 +144,31 @@ end
 
 -- Gửi nhiều lần nếu số lượng > 20
 local function sendAll(userId, items, totalNeeded, note, statusCb)
-    local MAX_PER_BATCH = 20
     local sent = 0
-    local remaining = totalNeeded
-    local itemIndex = 1
-    local itemSentCount = 0
+    local payload = {}
 
-    while remaining > 0 and itemIndex <= #items do
-        local batch = {}
-        local batchCount = 0
-
-        while batchCount < MAX_PER_BATCH and remaining > 0 and itemIndex <= #items do
-            local item = items[itemIndex]
-            local canTake = math.min(item.Available - itemSentCount, remaining, MAX_PER_BATCH - batchCount)
-            if canTake <= 0 then
-                itemIndex += 1
-                itemSentCount = 0
-            else
-                table.insert(batch, {Category=item.Category, ItemKey=item.ItemKey, Count=canTake})
-                batchCount += canTake
-                itemSentCount += canTake
-                remaining -= canTake
-                if itemSentCount >= item.Available then
-                    itemIndex += 1
-                    itemSentCount = 0
-                end
-            end
-        end
-
-        if #batch > 0 then
-            if statusCb then statusCb("📦 Đang gửi... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
-            local ok, msg = sendBatch(userId, batch, note)
-            if ok then
-                sent += batchCount
-                if statusCb then statusCb("✅ Đã gửi " .. tostring(sent) .. "/" .. tostring(totalNeeded)) end
-            else
-                if statusCb then statusCb("❌ Lỗi: " .. tostring(msg)) end
-                return sent, msg
-            end
-            if remaining > 0 then
-                for i = 10, 1, -1 do
-                    if statusCb then statusCb("⏳ Chờ " .. i .. "s... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
-                    task.wait(1)
-                end
-            end
-        else
-            break
-        end
+    for _, item in ipairs(items) do
+        local canTake = math.min(item.Available, totalNeeded - sent)
+        if canTake <= 0 then break end
+        table.insert(payload, {Category=item.Category, ItemKey=item.ItemKey, Count=canTake})
+        sent += canTake
+        if sent >= totalNeeded then break end
     end
 
-    return sent, nil
+    if #payload == 0 then
+        return 0, "Không có item để gửi"
+    end
+
+    if statusCb then statusCb("📦 Đang gửi " .. tostring(sent) .. " item...") end
+
+    local ok, msg = sendBatch(userId, payload, note)
+    if ok then
+        if statusCb then statusCb("✅ Đã gửi " .. tostring(sent) .. " item") end
+        return sent, nil
+    else
+        if statusCb then statusCb("❌ Lỗi: " .. tostring(msg)) end
+        return 0, msg
+    end
 end
 
 -- ===================== GUI =====================
@@ -421,7 +396,7 @@ sendBtn.MouseButton1Click:Connect(function()
 
         -- Gửi
         local batches = math.ceil(toSend / 20)
-        statusLbl.Text = "📦 Cần gửi " .. toSend .. " item (" .. batches .. " batch)..."
+        statusLbl.Text = "📦 Cần gửi " .. toSend .. " item (1 batch)..."
         statusLbl.TextColor3 = C.cyan
 
         local sent, err = sendAll(verifiedUserId, items, toSend, note, function(msg)
