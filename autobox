@@ -182,14 +182,15 @@ local function sendAll(userId, items, totalNeeded, note, statusCb)
                 if statusCb then statusCb("❌ Lỗi batch: " .. tostring(msg)) end
                 return sent, msg
             end
-            task.wait(1.8)
+            if remaining > 0 then
+                for i = 7, 1, -1 do
+                    if statusCb then statusCb("⏳ Chờ " .. i .. "s... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
+                    task.wait(1)
+                end
+            end
         else
             break
         end
-    end
-
-    return sent, nil
-end
 
 -- ===================== GUI =====================
 local oldGui = game:GetService("CoreGui"):FindFirstChild("TuanhMailboxUI")
