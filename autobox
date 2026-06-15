@@ -173,7 +173,7 @@ local function sendAll(userId, items, totalNeeded, note, statusCb)
         end
 
         if #batch > 0 then
-            if statusCb then statusCb("📦 Đang gửi batch " .. tostring(math.ceil((sent+batchCount)/MAX_PER_BATCH)) .. "... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
+            if statusCb then statusCb("📦 Đang gửi batch...") end
             local ok, msg = sendBatch(userId, batch, note)
             if ok then
                 sent += batchCount
@@ -182,7 +182,7 @@ local function sendAll(userId, items, totalNeeded, note, statusCb)
                 if statusCb then statusCb("❌ Lỗi batch: " .. tostring(msg)) end
                 return sent, msg
             end
-           if remaining > 0 then
+            if remaining > 0 then
                 for i = 7, 1, -1 do
                     if statusCb then statusCb("⏳ Chờ " .. i .. "s... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
                     task.wait(1)
