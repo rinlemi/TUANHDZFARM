@@ -421,7 +421,7 @@ infoCard.BackgroundColor3 = C.card; infoCard.BorderSizePixel = 0; corner(7, info
 local infoP = Instance.new("UIPadding", infoCard); infoP.PaddingLeft = UDim.new(0,8); infoP.PaddingTop = UDim.new(0,4)
 local infoLbl = Instance.new("TextLabel", infoCard)
 infoLbl.Size = UDim2.new(1,-8,1,0); infoLbl.BackgroundTransparency = 1
-infoLbl.Text = "⚠  Mỗi batch tối đa 20 item • Tự động gửi nhiều lần"
+infoLbl.Text = "⚠  Nhập số lượng Muốn Gửi Vidu:9999"
 infoLbl.TextColor3 = C.yellow; infoLbl.TextSize = 9; infoLbl.Font = Enum.Font.Gotham
 infoLbl.TextXAlignment = Enum.TextXAlignment.Left; infoLbl.TextWrapped = true
 
