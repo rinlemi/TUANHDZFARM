@@ -1,4 +1,6 @@
 -- AUTO MAILBOX UI
+-- Đọc method từ script gốc, wrap thêm UI để nhập recipient + item + số lượng
+
 repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -6,6 +8,7 @@ local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 repeat task.wait() until LocalPlayer
 
+-- ===================== SETUP =====================
 local SharedModules = ReplicatedStorage:WaitForChild("SharedModules")
 local SharedData = ReplicatedStorage:WaitForChild("SharedData")
 local function safeRequire(inst)
@@ -75,9 +78,12 @@ local function getInventory()
     return replica.Data.Inventory
 end
 
+-- Tìm item trong inventory theo tên (seed, fruit, pet)
 local function findItems(itemName, inv)
     local results = {}
     local searchNorm = string.lower(itemName:gsub("%s+",""))
+
+    -- Scan Seeds
     if type(inv.Seeds) == "table" then
         for seedKey, seedEntry in pairs(inv.Seeds) do
             local keyNorm = string.lower(tostring(seedKey):gsub("%s+",""))
@@ -94,6 +100,8 @@ local function findItems(itemName, inv)
             end
         end
     end
+
+    -- Scan HarvestedFruits
     if type(inv.HarvestedFruits) == "table" then
         for itemKey, entry in pairs(inv.HarvestedFruits) do
             if type(entry) == "table" and entry.Id ~= nil then
@@ -105,6 +113,8 @@ local function findItems(itemName, inv)
             end
         end
     end
+
+    -- Scan Pets
     if type(inv.Pets) == "table" then
         for itemKey, entry in pairs(inv.Pets) do
             if type(entry) == "table" and entry.Id ~= nil then
@@ -116,6 +126,7 @@ local function findItems(itemName, inv)
             end
         end
     end
+
     return results
 end
 
@@ -131,6 +142,7 @@ local function sendBatch(userId, payload, note)
     return false, tostring(message or "Gửi thất bại")
 end
 
+-- Gửi nhiều lần nếu số lượng > 20
 local function sendAll(userId, items, totalNeeded, note, statusCb)
     local MAX_PER_BATCH = 20
     local sent = 0
@@ -170,12 +182,7 @@ local function sendAll(userId, items, totalNeeded, note, statusCb)
                 if statusCb then statusCb("❌ Lỗi batch: " .. tostring(msg)) end
                 return sent, msg
             end
-            if remaining > 0 then
-                for i = 7, 1, -1 do
-                    if statusCb then statusCb("⏳ Chờ " .. i .. "s... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
-                    task.wait(1)
-                end
-            end
+            task.wait(1.8)
         else
             break
         end
@@ -187,23 +194,21 @@ end
 -- ===================== GUI =====================
 local oldGui = game:GetService("CoreGui"):FindFirstChild("TuanhMailboxUI")
 if oldGui then oldGui:Destroy() end
-local oldToggle = game:GetService("CoreGui"):FindFirstChild("TuanhMailboxToggle")
-if oldToggle then oldToggle:Destroy() end
 
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.Name = "TuanhMailboxUI"; gui.ResetOnSpawn = false; gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local C = {
-    bg     = Color3.fromRGB(12,12,22),
-    card   = Color3.fromRGB(26,26,46),
-    accent = Color3.fromRGB(120,55,255),
-    green  = Color3.fromRGB(80,255,140),
-    red    = Color3.fromRGB(255,80,80),
-    yellow = Color3.fromRGB(255,200,60),
-    cyan   = Color3.fromRGB(0,200,255),
-    white  = Color3.fromRGB(230,230,245),
-    muted  = Color3.fromRGB(100,100,130),
-    border = Color3.fromRGB(40,35,80),
+    bg      = Color3.fromRGB(12,12,22),
+    card    = Color3.fromRGB(26,26,46),
+    accent  = Color3.fromRGB(120,55,255),
+    green   = Color3.fromRGB(80,255,140),
+    red     = Color3.fromRGB(255,80,80),
+    yellow  = Color3.fromRGB(255,200,60),
+    cyan    = Color3.fromRGB(0,200,255),
+    white   = Color3.fromRGB(230,230,245),
+    muted   = Color3.fromRGB(100,100,130),
+    border  = Color3.fromRGB(40,35,80),
 }
 local function corner(r,obj) local c=Instance.new("UICorner",obj); c.CornerRadius=UDim.new(0,r) end
 local function stroke(obj,color,thick) local s=Instance.new("UIStroke",obj); s.Color=color or C.border; s.Thickness=thick or 1 end
@@ -213,6 +218,7 @@ main.Size = UDim2.new(0,380,0,460); main.Position = UDim2.new(0.5,-190,0.5,-230)
 main.BackgroundColor3 = C.bg; main.BorderSizePixel = 0; main.Active = true; main.Draggable = true
 corner(12, main); stroke(main, C.accent, 1.5)
 
+-- Title bar
 local titleBar = Instance.new("Frame", main)
 titleBar.Size = UDim2.new(1,0,0,36); titleBar.BackgroundColor3 = C.accent; titleBar.BorderSizePixel = 0; corner(12, titleBar)
 local tbFlat = Instance.new("Frame", titleBar); tbFlat.Size = UDim2.new(1,0,0.5,0); tbFlat.Position = UDim2.new(0,0,0.5,0); tbFlat.BackgroundColor3 = C.accent; tbFlat.BorderSizePixel = 0
@@ -229,6 +235,7 @@ closeBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); closeBtn.BorderSizePixel 
 closeBtn.Text = "✕"; closeBtn.TextColor3 = Color3.fromRGB(255,255,255); closeBtn.TextSize = 11; closeBtn.Font = Enum.Font.GothamBold; corner(5, closeBtn)
 closeBtn.MouseButton1Click:Connect(function() main.Visible = false end)
 
+-- Toggle button
 local toggleGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 toggleGui.Name = "TuanhMailboxToggle"; toggleGui.ResetOnSpawn = false
 local toggleBtn = Instance.new("TextButton", toggleGui)
@@ -239,6 +246,7 @@ toggleBtn.Font = Enum.Font.GothamBold; toggleBtn.Active = true; toggleBtn.Dragga
 corner(10, toggleBtn); stroke(toggleBtn, Color3.fromRGB(160,100,255), 1.5)
 toggleBtn.MouseButton1Click:Connect(function() main.Visible = not main.Visible end)
 
+-- Content
 local content = Instance.new("Frame", main)
 content.Size = UDim2.new(1,-24,1,-48); content.Position = UDim2.new(0,12,0,44)
 content.BackgroundTransparency = 1; content.BorderSizePixel = 0
@@ -264,9 +272,11 @@ local function makeInput(y, placeholder)
     return box, frame
 end
 
+-- Recipient
 makeLabel("👤  TÊN NGƯỜI NHẬN", 0, C.muted)
 local recipientBox, recipientFrame = makeInput(16, "@username")
 
+-- Verify button + status
 local verifyBtn = Instance.new("TextButton", content)
 verifyBtn.Size = UDim2.new(1,0,0,28); verifyBtn.Position = UDim2.new(0,0,0,52)
 verifyBtn.BackgroundColor3 = C.accent; verifyBtn.BorderSizePixel = 0
@@ -278,31 +288,37 @@ verifyStatus.Size = UDim2.new(1,0,0,14); verifyStatus.Position = UDim2.new(0,0,0
 verifyStatus.BackgroundTransparency = 1; verifyStatus.Text = ""
 verifyStatus.TextColor3 = C.muted; verifyStatus.TextSize = 9; verifyStatus.Font = Enum.Font.Gotham; verifyStatus.TextXAlignment = Enum.TextXAlignment.Left
 
+-- Item name
 makeLabel("📦  TÊN ITEM (vd: Bamboo Seed, Apple, Bee)", 102, C.muted)
 local itemBox, itemFrame = makeInput(118, "Bamboo Seed")
 
+-- Quantity
 makeLabel("🔢  SỐ LƯỢNG CẦN GỬI", 158, C.muted)
 local qtyBox, qtyFrame = makeInput(174, "100")
 
+-- Note
 makeLabel("📝  GHI CHÚ (tuỳ chọn)", 214, C.muted)
 local noteBox, noteFrame = makeInput(230, "auto-mail")
 
+-- Info card
 local infoCard = Instance.new("Frame", content)
 infoCard.Size = UDim2.new(1,0,0,30); infoCard.Position = UDim2.new(0,0,0,270)
 infoCard.BackgroundColor3 = C.card; infoCard.BorderSizePixel = 0; corner(7, infoCard); stroke(infoCard, C.border, 1)
 local infoP = Instance.new("UIPadding", infoCard); infoP.PaddingLeft = UDim.new(0,8); infoP.PaddingTop = UDim.new(0,4)
 local infoLbl = Instance.new("TextLabel", infoCard)
 infoLbl.Size = UDim2.new(1,-8,1,0); infoLbl.BackgroundTransparency = 1
-infoLbl.Text = "⚠  Mỗi batch tối đa 20 item • Tự chờ 7s giữa các batch"
+infoLbl.Text = "⚠  Mỗi batch tối đa 20 item • Tự động gửi nhiều lần"
 infoLbl.TextColor3 = C.yellow; infoLbl.TextSize = 9; infoLbl.Font = Enum.Font.Gotham
 infoLbl.TextXAlignment = Enum.TextXAlignment.Left; infoLbl.TextWrapped = true
 
+-- Send button
 local sendBtn = Instance.new("TextButton", content)
 sendBtn.Size = UDim2.new(1,0,0,34); sendBtn.Position = UDim2.new(0,0,0,308)
 sendBtn.BackgroundColor3 = C.green; sendBtn.BorderSizePixel = 0
 sendBtn.Text = "📬  GỬI NGAY"; sendBtn.TextColor3 = Color3.fromRGB(10,10,10)
 sendBtn.TextSize = 13; sendBtn.Font = Enum.Font.GothamBold; corner(8, sendBtn)
 
+-- Status
 local statusLbl = Instance.new("TextLabel", content)
 statusLbl.Size = UDim2.new(1,0,0,60); statusLbl.Position = UDim2.new(0,0,0,348)
 statusLbl.BackgroundTransparency = 1; statusLbl.Text = "● Chờ nhập thông tin..."
@@ -350,6 +366,8 @@ end)
 
 sendBtn.MouseButton1Click:Connect(function()
     if isSending then return end
+
+    -- Validate
     if not verifiedUserId then
         statusLbl.Text = "❌ Xác nhận người nhận trước!"; statusLbl.TextColor3 = C.red; return
     end
@@ -370,6 +388,7 @@ sendBtn.MouseButton1Click:Connect(function()
     statusLbl.TextColor3 = C.yellow
 
     task.spawn(function()
+        -- Đọc inventory
         statusLbl.Text = "📂 Đang đọc inventory..."
         local inv = getInventory()
         if not inv then
@@ -377,6 +396,7 @@ sendBtn.MouseButton1Click:Connect(function()
             isSending = false; sendBtn.Text = "📬  GỬI NGAY"; sendBtn.BackgroundColor3 = C.green; return
         end
 
+        -- Tìm item
         statusLbl.Text = "🔍 Đang tìm item: " .. itemName
         local items = findItems(itemName, inv)
         if #items == 0 then
@@ -384,6 +404,7 @@ sendBtn.MouseButton1Click:Connect(function()
             isSending = false; sendBtn.Text = "📬  GỬI NGAY"; sendBtn.BackgroundColor3 = C.green; return
         end
 
+        -- Tính tổng available
         local totalAvailable = 0
         for _, item in ipairs(items) do totalAvailable += item.Available end
         local toSend = math.min(qty, totalAvailable)
@@ -393,6 +414,7 @@ sendBtn.MouseButton1Click:Connect(function()
             task.wait(1.5)
         end
 
+        -- Gửi
         local batches = math.ceil(toSend / 20)
         statusLbl.Text = "📦 Cần gửi " .. toSend .. " item (" .. batches .. " batch)..."
         statusLbl.TextColor3 = C.cyan
