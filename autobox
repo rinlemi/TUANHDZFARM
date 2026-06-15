@@ -183,7 +183,7 @@ local function sendAll(userId, items, totalNeeded, note, statusCb)
                 return sent, msg
             end
             if remaining > 0 then
-                for i = 8, 1, -1 do
+                for i = 10, 1, -1 do
                     if statusCb then statusCb("⏳ Chờ " .. i .. "s... (" .. tostring(sent) .. "/" .. tostring(totalNeeded) .. ")") end
                     task.wait(1)
                 end
