@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 repeat task.wait() until LocalPlayer
 
 -- ===================== KEY SYSTEM =====================
-local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbxGHUQ3uNF9zYeW8vyvVWI2zyq9U0mQnu88oln0o6rPqvmBRBhCXL_RI9g2buBqr3OM/exec"
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbzh8vxebW-q3bw3DOpa9HuJ36B8Z2Vz7nzvIvedy1GAy4dF01TY4APEg8PmyVgns8ss/exec"
 
 local function getHWID()
     return game:GetService("RbxAnalyticsService"):GetClientId()
