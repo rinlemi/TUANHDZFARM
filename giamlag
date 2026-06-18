@@ -180,9 +180,8 @@ local function getInventory()
 end
 
 -- Quét toàn bộ item trong balo: Seeds (replica) + Pets (replica) + Fruit Tools (Backpack)
--- Trả về danh sách nhóm theo tên, mỗi nhóm có: Category, DisplayName, Available, Sources (list các ItemKey/Id cụ thể)
 local function scanAllItems()
-    local groups = {} -- key = Category.."|"..DisplayName
+    local groups = {}
 
     local function addToGroup(category, displayName, itemKey, qtyOrOne)
         local groupKey = category .. "|" .. displayName
@@ -191,7 +190,7 @@ local function scanAllItems()
                 Category = category,
                 DisplayName = displayName,
                 Available = 0,
-                Sources = {}, -- mỗi source: {ItemKey=.., Qty=..}
+                Sources = {},
             }
         end
         local g = groups[groupKey]
@@ -199,21 +198,23 @@ local function scanAllItems()
         table.insert(g.Sources, {ItemKey = itemKey, Qty = qtyOrOne})
     end
 
-    -- 1) SEEDS từ Inventory replica (key = tên seed, value = số lượng number)
+    -- 1) SEEDS từ Inventory replica
     local inv = getInventory()
     if inv and type(inv.Seeds) == "table" then
         for seedName, amount in pairs(inv.Seeds) do
-            local qty = tonumber(amount) or 0
-            if type(amount) == "table" then
+            local qty = 0
+            if type(amount) == "number" then
+                qty = amount
+            elseif type(amount) == "table" then
                 qty = tonumber(amount.Count or amount.Amount or amount.Quantity or amount.Stack or 0) or 0
             end
             if qty > 0 then
-                addToGroup("Seeds", seedName, seedName, qty)
+                addToGroup("Seeds", tostring(seedName), seedName, qty)
             end
         end
     end
 
-    -- 2) PETS từ Inventory replica (key = Id, value = {Id, Equipped, Name})
+    -- 2) PETS từ Inventory replica
     if inv and type(inv.Pets) == "table" then
         for petKey, petEntry in pairs(inv.Pets) do
             if type(petEntry) == "table" then
@@ -228,8 +229,8 @@ local function scanAllItems()
     if backpack then
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") then
-                local attrs = tool:GetAttributes()
-                if attrs and attrs.HarvestedFruit == true then
+                local okAttr, attrs = pcall(function() return tool:GetAttributes() end)
+                if okAttr and type(attrs) == "table" and attrs.HarvestedFruit == true then
                     local fruitName = tostring(attrs.FruitName or attrs.Fruit or tool.Name)
                     local id = attrs.Id or tool.Name
                     addToGroup("HarvestedFruits", fruitName, id, 1)
@@ -238,7 +239,6 @@ local function scanAllItems()
         end
     end
 
-    -- Chuyển dict thành list, sort theo Category rồi tên
     local list = {}
     for _, g in pairs(groups) do
         table.insert(list, g)
@@ -262,24 +262,19 @@ local function sendBatch(userId, payload, note)
     return false, tostring(message or "Gửi thất bại")
 end
 
--- Gửi nhiều nhóm item đã chọn, mỗi nhóm có Category/DisplayName/Sources/RequestedQty
--- Tự động chia batch tối đa 20 dòng payload mỗi lần gửi
 local function sendSelectedGroups(userId, selections, note, statusCb)
-    -- selections: list of {Group=group, RequestedQty=number}
-    local allPayloadItems = {} -- mỗi item: {Category, ItemKey, Count}
+    local allPayloadItems = {}
 
     for _, sel in ipairs(selections) do
         local group = sel.Group
         local needed = sel.RequestedQty
         if needed > 0 then
             if group.Category == "Seeds" then
-                -- Seeds: 1 ItemKey duy nhất, Count = số lượng
                 local take = math.min(needed, group.Available)
                 if take > 0 then
                     table.insert(allPayloadItems, {Category = "Seeds", ItemKey = group.Sources[1].ItemKey, Count = take})
                 end
             else
-                -- Pets / Fruits: mỗi instance Count = 1, lấy đủ số instance cần
                 local taken = 0
                 for _, src in ipairs(group.Sources) do
                     if taken >= needed then break end
@@ -441,7 +436,6 @@ local function makeInput(parent, y, placeholder, height)
     return box, frame
 end
 
--- Recipient
 makeLabel(content, "👤  TÊN NGƯỜI NHẬN", 0, C.muted)
 local recipientBox, recipientFrame = makeInput(content, 16, "@username")
 
@@ -456,7 +450,6 @@ verifyStatus.Size = UDim2.new(1,0,0,14); verifyStatus.Position = UDim2.new(0,0,0
 verifyStatus.BackgroundTransparency = 1; verifyStatus.Text = ""
 verifyStatus.TextColor3 = C.muted; verifyStatus.TextSize = 9; verifyStatus.Font = Enum.Font.Gotham; verifyStatus.TextXAlignment = Enum.TextXAlignment.Left
 
--- Header cho list + refresh button
 makeLabel(content, "📦  CHỌN ITEM TRONG BALO", 100, C.muted)
 local refreshBtn = Instance.new("TextButton", content)
 refreshBtn.Size = UDim2.new(0,70,0,18); refreshBtn.Position = UDim2.new(1,-70,0,98)
@@ -464,7 +457,6 @@ refreshBtn.BackgroundColor3 = Color3.fromRGB(50,50,80); refreshBtn.BorderSizePix
 refreshBtn.Text = "🔄 Refresh"; refreshBtn.TextColor3 = C.white; refreshBtn.TextSize = 9; refreshBtn.Font = Enum.Font.GothamBold
 corner(5, refreshBtn)
 
--- Scrolling list chứa các item checkbox + qty input
 local listFrame = Instance.new("ScrollingFrame", content)
 listFrame.Size = UDim2.new(1,0,0,230); listFrame.Position = UDim2.new(0,0,0,120)
 listFrame.BackgroundColor3 = C.cardAlt; listFrame.BorderSizePixel = 0; corner(8, listFrame)
@@ -480,17 +472,18 @@ listLayout.Padding = UDim.new(0,4)
 local listPadding = Instance.new("UIPadding", listFrame)
 listPadding.PaddingTop = UDim.new(0,6); listPadding.PaddingLeft = UDim.new(0,6); listPadding.PaddingRight = UDim.new(0,6); listPadding.PaddingBottom = UDim.new(0,6)
 
--- selectedState: key = Category.."|"..DisplayName -> {checked=bool, qtyBox=TextBox, group=group}
 local selectedState = {}
 local currentGroups = {}
 
 local function buildItemRow(group, order)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1,-10,0,30)
-    row.BackgroundColor3 = C.card; row.BorderSizePixel = 0
+    row.BackgroundColor3 = C.card
+    row.BorderSizePixel = 0
     row.LayoutOrder = order
     corner(6, row)
     stroke(row, C.border, 1)
+    row.Parent = listFrame
 
     local checkBtn = Instance.new("TextButton", row)
     checkBtn.Size = UDim2.new(0,22,0,22); checkBtn.Position = UDim2.new(0,4,0.5,-11)
@@ -553,6 +546,8 @@ local function refreshList()
     selectedState = {}
     currentGroups = scanAllItems()
 
+    print("[DEBUG] currentGroups count:", #currentGroups)
+
     if #currentGroups == 0 then
         local emptyLbl = Instance.new("TextLabel", listFrame)
         emptyLbl.Size = UDim2.new(1,-10,0,30)
@@ -566,8 +561,9 @@ local function refreshList()
         buildItemRow(group, i)
     end
 
-    task.wait()
+    task.wait(0.1)
     listFrame.CanvasSize = UDim2.new(0,0,0, listLayout.AbsoluteContentSize.Y + 12)
+    print("[DEBUG] CanvasSize Y:", listLayout.AbsoluteContentSize.Y)
 end
 
 refreshBtn.MouseButton1Click:Connect(function()
@@ -576,11 +572,9 @@ refreshBtn.MouseButton1Click:Connect(function()
     refreshBtn.Text = "🔄 Refresh"
 end)
 
--- Note
 makeLabel(content, "📝  GHI CHÚ (tuỳ chọn)", 358, C.muted)
 local noteBox, noteFrame = makeInput(content, 374, "auto-mail", 28)
 
--- Send button
 local sendBtn = Instance.new("TextButton", content)
 sendBtn.Size = UDim2.new(1,0,0,34); sendBtn.Position = UDim2.new(0,0,0,410)
 sendBtn.BackgroundColor3 = C.green; sendBtn.BorderSizePixel = 0
@@ -594,7 +588,6 @@ statusLbl.TextColor3 = C.muted; statusLbl.TextSize = 10; statusLbl.Font = Enum.F
 statusLbl.TextXAlignment = Enum.TextXAlignment.Left; statusLbl.TextYAlignment = Enum.TextYAlignment.Top
 statusLbl.TextWrapped = true
 
--- Divider + Claim button
 local divider = Instance.new("Frame", content)
 divider.Size = UDim2.new(1,0,0,1); divider.Position = UDim2.new(0,0,0,484)
 divider.BackgroundColor3 = C.border; divider.BorderSizePixel = 0
@@ -612,7 +605,6 @@ claimStatusLbl.TextColor3 = C.muted; claimStatusLbl.TextSize = 10; claimStatusLb
 claimStatusLbl.TextXAlignment = Enum.TextXAlignment.Left; claimStatusLbl.TextYAlignment = Enum.TextYAlignment.Top
 claimStatusLbl.TextWrapped = true
 
--- ===================== LOGIC =====================
 local verifiedUserId = nil
 local verifiedUsername = nil
 local isSending = false
@@ -656,7 +648,6 @@ sendBtn.MouseButton1Click:Connect(function()
         statusLbl.Text = "❌ Xác nhận người nhận trước!"; statusLbl.TextColor3 = C.red; return
     end
 
-    -- Thu thập các item đã check
     local selections = {}
     for groupKey, st in pairs(selectedState) do
         if st.checked then
