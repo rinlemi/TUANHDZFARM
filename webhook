@@ -4,7 +4,7 @@
 -- CHANGE: Heartbeat → task.wait poll | Mob list throttle | Boss loop 0.1s | Cleanup connection
 
 -- ===================== KEY SYSTEM =====================
-local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbzKuYH2xXsADaLbevWIl7j0p6iZ-xQ3Ss08wXWEkAiGcOq2fzLAvDDQ-1AW9NdwqGUmKg/exec"
+local DEPLOY_URL = "https://script.google.com/macros/s/AKfycbwt21tp5-z_782-7jowbK7I-oUsUo-3fYxByeFz3VbP-BH6-y06tqqxJGb8jmAW9Uxnyg/exec"
 
 local function getHWID()
     return game:GetService("RbxAnalyticsService"):GetClientId()
