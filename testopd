@@ -1,4 +1,5 @@
--- AUTO MAILBOX UI + KEY SYSTEM (CHECKLIST ITEM - FULL: Seeds/Gear/Pets/Fruits)
+-- TUANH MAILBOX UI + KEY SYSTEM (CHECKLIST ITEM - FULL: Seeds/Gear/Pets/Fruits)
+-- English notifications + Recipient avatar card
 repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -128,6 +129,7 @@ end
 local Networking = safeRequire(SharedModules:WaitForChild("Networking"))
 local PlayerStateClient = safeRequire(ReplicatedStorage:WaitForChild("ClientModules"):WaitForChild("PlayerStateClient"))
 
+-- notify(): now in English for international recipients/users
 local function notify(title, text, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {Title=title or "Mailbox", Text=text or "", Duration=duration or 4})
@@ -140,20 +142,32 @@ local function cleanUsername(name)
     return name
 end
 
+-- Lookup player: also fetch DisplayName + avatar thumbnail
 local function lookupPlayer(username)
     if not Networking or not Networking.Mailbox or not Networking.Mailbox.LookupPlayer then
-        return nil, "Không tìm thấy Networking.Mailbox.LookupPlayer"
+        return nil, "Mailbox.LookupPlayer not found"
     end
     local ok, userId, displayName = pcall(function()
         return Networking.Mailbox.LookupPlayer:Fire(username)
     end)
     if not ok or type(userId) ~= "number" or userId <= 0 then
-        return nil, "Không tìm thấy người nhận: " .. tostring(username)
+        return nil, "Recipient not found: " .. tostring(username)
     end
     if userId == LocalPlayer.UserId then
-        return nil, "Không thể gửi cho chính mình"
+        return nil, "You cannot send a gift to yourself"
     end
     return userId, tostring(displayName or username)
+end
+
+local function getAvatarThumbnail(userId)
+    local ok, content = pcall(function()
+        local thumbType = Enum.ThumbnailType.HeadShot
+        local thumbSize = Enum.ThumbnailSize.Size100x100
+        local result, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
+        return result
+    end)
+    if ok then return content end
+    return nil
 end
 
 local function waitLocalReplica(timeout)
@@ -179,13 +193,13 @@ local function getInventory()
     return replica.Data.Inventory
 end
 
--- Các category KHÔNG tính là "Seeds-like" (number map), xử lý riêng
+-- Categories handled separately (NOT number-map style)
 local EXCLUDED_CATEGORIES = {
     Pets = true,
     HarvestedFruits = true,
 }
 
--- Nhãn icon hiển thị theo category (mặc định 📦 nếu không khớp)
+-- Icon per category for display
 local CATEGORY_ICON = {
     Seeds = "🌱",
     Pets = "🐾",
@@ -215,7 +229,7 @@ local function getCategoryIcon(catName)
     return CATEGORY_ICON[catName] or "📦"
 end
 
--- Quét toàn bộ item trong balo: mọi category dạng number-map (Seeds, Gear...) + Pets + Fruits (Backpack)
+-- Scan ALL items in backpack: every number-map category (Seeds, Gear...) + Pets + Fruits (Backpack tools)
 local function scanAllItems()
     local groups = {}
 
@@ -236,7 +250,7 @@ local function scanAllItems()
 
     local inv = getInventory()
 
-    -- 1) Tự động quét MỌI category dạng number-map (Seeds, WateringCans, Sprinklers, Trowels, Crates, SeedPacks, Gnomes...)
+    -- 1) Auto-scan EVERY number-map category (Seeds, WateringCans, Sprinklers, Trowels, Crates, SeedPacks, Gnomes...)
     if inv then
         for catName, catData in pairs(inv) do
             if not EXCLUDED_CATEGORIES[catName] and type(catData) == "table" then
@@ -261,7 +275,7 @@ local function scanAllItems()
         end
     end
 
-    -- 2) PETS từ Inventory replica
+    -- 2) PETS from Inventory replica
     if inv and type(inv.Pets) == "table" then
         for petKey, petEntry in pairs(inv.Pets) do
             if type(petEntry) == "table" then
@@ -271,7 +285,7 @@ local function scanAllItems()
         end
     end
 
-    -- 3) FRUITS từ Backpack (Tool có attribute HarvestedFruit = true)
+    -- 3) FRUITS from Backpack (Tool with attribute HarvestedFruit = true)
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if backpack then
         for _, tool in ipairs(backpack:GetChildren()) do
@@ -299,20 +313,22 @@ end
 
 local function sendBatch(userId, payload, note)
     if not Networking or not Networking.Mailbox or not Networking.Mailbox.SendBatch then
-        return false, "Không tìm thấy SendBatch"
+        return false, "SendBatch not found"
     end
     local ok, result, message = pcall(function()
         return Networking.Mailbox.SendBatch:Fire(userId, payload, tostring(note or ""))
     end)
-    if not ok then return false, "SendBatch lỗi: " .. tostring(result) end
-    if result == true then return true, tostring(message or "Đã gửi!") end
-    return false, tostring(message or "Gửi thất bại")
+    if not ok then return false, "SendBatch error: " .. tostring(result) end
+    if result == true then return true, tostring(message or "Gift sent!") end
+    return false, tostring(message or "Failed to send gift")
 end
 
--- Gửi nhiều nhóm đã chọn. Server giới hạn cooldown giữa mỗi lần gửi (~7s),
--- script tự đợi và retry 1 lần nếu gặp lỗi "Wait Xs..."
+-- Send selected groups. Server enforces a cooldown between gifts (~7s),
+-- the script automatically waits and retries once if it hits "Wait Xs..."
+-- Returns: totalSent, errorMsg, sentDetails (list of {Name, Qty})
 local function sendSelectedGroups(userId, selections, note, statusCb)
     local allPayloadItems = {}
+    local sentDetails = {} -- {DisplayName, Category, Qty} for the final notification
 
     for _, sel in ipairs(selections) do
         local group = sel.Group
@@ -325,17 +341,21 @@ local function sendSelectedGroups(userId, selections, note, statusCb)
                     table.insert(allPayloadItems, {Category = group.Category, ItemKey = src.ItemKey, Count = 1})
                     taken = taken + 1
                 end
+                if taken > 0 then
+                    table.insert(sentDetails, {Name = group.DisplayName, Qty = taken})
+                end
             else
                 local take = math.min(needed, group.Available)
                 if take > 0 then
                     table.insert(allPayloadItems, {Category = group.Category, ItemKey = group.Sources[1].ItemKey, Count = take})
+                    table.insert(sentDetails, {Name = group.DisplayName, Qty = take})
                 end
             end
         end
     end
 
     if #allPayloadItems == 0 then
-        return 0, "Không có item nào để gửi"
+        return 0, "No items to send", {}
     end
 
     local totalSent = 0
@@ -351,23 +371,23 @@ local function sendSelectedGroups(userId, selections, note, statusCb)
         end
 
         batchNum = batchNum + 1
-        if statusCb then statusCb("📦 Đang gửi batch " .. tostring(batchNum) .. "...") end
+        if statusCb then statusCb("Sending batch " .. tostring(batchNum) .. "...") end
 
         local ok, msg = sendBatch(userId, batch, note)
         if ok then
             totalSent = totalSent + #batch
         else
             if tostring(msg):find("Wait") then
-                if statusCb then statusCb("⏳ Đang chờ cooldown server...") end
+                if statusCb then statusCb("Waiting for server cooldown...") end
                 task.wait(7.5)
                 local ok2, msg2 = sendBatch(userId, batch, note)
                 if ok2 then
                     totalSent = totalSent + #batch
                 else
-                    return totalSent, msg2
+                    return totalSent, msg2, sentDetails
                 end
             else
-                return totalSent, msg
+                return totalSent, msg, sentDetails
             end
         end
 
@@ -377,32 +397,32 @@ local function sendSelectedGroups(userId, selections, note, statusCb)
         end
     end
 
-    return totalSent, nil
+    return totalSent, nil, sentDetails
 end
 
 -- ===================== AUTO CLAIM =====================
 local function autoClaimAll(statusCb)
     if not Networking or not Networking.Mailbox then
-        if statusCb then statusCb("❌ Không tìm thấy Mailbox!") end
+        if statusCb then statusCb("Mailbox not found!") end
         return 0, 0
     end
     pcall(function() Networking.Mailbox.OpenInbox:Fire() end)
     task.wait(0.5)
     local ok, gifts = pcall(function() return Networking.Mailbox.List:Fire() end)
     if not ok or type(gifts) ~= "table" then
-        if statusCb then statusCb("❌ Không lấy được danh sách mail!") end
+        if statusCb then statusCb("Could not load mailbox list!") end
         return 0, 0
     end
     local total = 0
     for _ in pairs(gifts) do total = total + 1 end
     if total == 0 then
-        if statusCb then statusCb("📭 Mailbox trống!") end
+        if statusCb then statusCb("Mailbox is empty!") end
         return 0, 0
     end
     local claimed = 0
     for giftId, giftData in pairs(gifts) do
         task.wait(0.35)
-        if statusCb then statusCb("⏳ Đang claim mail... " .. claimed .. "/" .. total) end
+        if statusCb then statusCb("Claiming mail... " .. claimed .. "/" .. total) end
         local itemsTable = giftData.Items or giftData["Items table"]
         local ok2, result = pcall(function()
             return Networking.Mailbox.Claim:Fire(giftId, itemsTable)
@@ -441,8 +461,9 @@ local C = {
 local function corner(r,obj) local c=Instance.new("UICorner",obj); c.CornerRadius=UDim.new(0,r) end
 local function stroke(obj,color,thick) local s=Instance.new("UIStroke",obj); s.Color=color or C.border; s.Thickness=thick or 1 end
 
+-- Main frame made taller to fit the new recipient avatar card
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,400,0,600); main.Position = UDim2.new(0.5,-200,0.5,-300)
+main.Size = UDim2.new(0,400,0,660); main.Position = UDim2.new(0.5,-200,0.5,-330)
 main.BackgroundColor3 = C.bg; main.BorderSizePixel = 0; main.Active = true; main.Draggable = true
 corner(12, main); stroke(main, C.accent, 1.5)
 
@@ -498,29 +519,56 @@ local function makeInput(parent, y, placeholder, height)
     return box, frame
 end
 
-makeLabel(content, "👤  TÊN NGƯỜI NHẬN", 0, C.muted)
+makeLabel(content, "👤  RECIPIENT USERNAME", 0, C.muted)
 local recipientBox, recipientFrame = makeInput(content, 16, "@username")
 
 local verifyBtn = Instance.new("TextButton", content)
 verifyBtn.Size = UDim2.new(1,0,0,26); verifyBtn.Position = UDim2.new(0,0,0,52)
 verifyBtn.BackgroundColor3 = C.accent; verifyBtn.BorderSizePixel = 0
-verifyBtn.Text = "🔍  Xác Nhận Người Nhận"; verifyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+verifyBtn.Text = "🔍  Verify Recipient"; verifyBtn.TextColor3 = Color3.fromRGB(255,255,255)
 verifyBtn.TextSize = 11; verifyBtn.Font = Enum.Font.GothamBold; corner(7, verifyBtn)
 
+-- ===== Recipient result card: avatar + DisplayName + @username =====
+local recipientCard = Instance.new("Frame", content)
+recipientCard.Size = UDim2.new(1,0,0,56); recipientCard.Position = UDim2.new(0,0,0,82)
+recipientCard.BackgroundColor3 = C.card; recipientCard.BorderSizePixel = 0
+recipientCard.Visible = false
+corner(8, recipientCard); stroke(recipientCard, C.border, 1)
+
+local recipientAvatar = Instance.new("ImageLabel", recipientCard)
+recipientAvatar.Size = UDim2.new(0,44,0,44); recipientAvatar.Position = UDim2.new(0,6,0.5,-22)
+recipientAvatar.BackgroundColor3 = Color3.fromRGB(45,45,70); recipientAvatar.BorderSizePixel = 0
+recipientAvatar.Image = ""
+corner(22, recipientAvatar)
+
+local recipientNameLbl = Instance.new("TextLabel", recipientCard)
+recipientNameLbl.Size = UDim2.new(1,-58,0,18); recipientNameLbl.Position = UDim2.new(0,56,0,10)
+recipientNameLbl.BackgroundTransparency = 1; recipientNameLbl.Text = ""
+recipientNameLbl.TextColor3 = C.white; recipientNameLbl.TextSize = 12; recipientNameLbl.Font = Enum.Font.GothamBold
+recipientNameLbl.TextXAlignment = Enum.TextXAlignment.Left
+recipientNameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+local recipientHandleLbl = Instance.new("TextLabel", recipientCard)
+recipientHandleLbl.Size = UDim2.new(1,-58,0,16); recipientHandleLbl.Position = UDim2.new(0,56,0,30)
+recipientHandleLbl.BackgroundTransparency = 1; recipientHandleLbl.Text = ""
+recipientHandleLbl.TextColor3 = C.muted; recipientHandleLbl.TextSize = 10; recipientHandleLbl.Font = Enum.Font.Gotham
+recipientHandleLbl.TextXAlignment = Enum.TextXAlignment.Left
+recipientHandleLbl.TextTruncate = Enum.TextTruncate.AtEnd
+
 local verifyStatus = Instance.new("TextLabel", content)
-verifyStatus.Size = UDim2.new(1,0,0,14); verifyStatus.Position = UDim2.new(0,0,0,82)
+verifyStatus.Size = UDim2.new(1,0,0,14); verifyStatus.Position = UDim2.new(0,0,0,142)
 verifyStatus.BackgroundTransparency = 1; verifyStatus.Text = ""
 verifyStatus.TextColor3 = C.muted; verifyStatus.TextSize = 9; verifyStatus.Font = Enum.Font.Gotham; verifyStatus.TextXAlignment = Enum.TextXAlignment.Left
 
-makeLabel(content, "📦  CHỌN ITEM TRONG BALO (Seeds/Gear/Pets/Fruits)", 100, C.muted)
+makeLabel(content, "📦  SELECT ITEMS FROM INVENTORY (Seeds/Gear/Pets/Fruits)", 160, C.muted)
 local refreshBtn = Instance.new("TextButton", content)
-refreshBtn.Size = UDim2.new(0,70,0,18); refreshBtn.Position = UDim2.new(1,-70,0,98)
+refreshBtn.Size = UDim2.new(0,70,0,18); refreshBtn.Position = UDim2.new(1,-70,0,158)
 refreshBtn.BackgroundColor3 = Color3.fromRGB(50,50,80); refreshBtn.BorderSizePixel = 0
 refreshBtn.Text = "🔄 Refresh"; refreshBtn.TextColor3 = C.white; refreshBtn.TextSize = 9; refreshBtn.Font = Enum.Font.GothamBold
 corner(5, refreshBtn)
 
 local listFrame = Instance.new("ScrollingFrame", content)
-listFrame.Size = UDim2.new(1,0,0,230); listFrame.Position = UDim2.new(0,0,0,120)
+listFrame.Size = UDim2.new(1,0,0,230); listFrame.Position = UDim2.new(0,0,0,180)
 listFrame.BackgroundColor3 = C.cardAlt; listFrame.BorderSizePixel = 0; corner(8, listFrame)
 listFrame.ScrollBarThickness = 5
 listFrame.CanvasSize = UDim2.new(0,0,0,0)
@@ -613,7 +661,7 @@ local function refreshList()
         local emptyLbl = Instance.new("TextLabel", listFrame)
         emptyLbl.Size = UDim2.new(1,-10,0,30)
         emptyLbl.BackgroundTransparency = 1
-        emptyLbl.Text = "📭 Balo trống hoặc chưa đọc được dữ liệu"
+        emptyLbl.Text = "📭 Inventory is empty or could not be loaded"
         emptyLbl.TextColor3 = C.muted; emptyLbl.TextSize = 10; emptyLbl.Font = Enum.Font.Gotham
         return
     end
@@ -632,34 +680,34 @@ refreshBtn.MouseButton1Click:Connect(function()
     refreshBtn.Text = "🔄 Refresh"
 end)
 
-makeLabel(content, "📝  GHI CHÚ (tuỳ chọn)", 358, C.muted)
-local noteBox, noteFrame = makeInput(content, 374, "auto-mail", 28)
+makeLabel(content, "📝  NOTE (optional)", 418, C.muted)
+local noteBox, noteFrame = makeInput(content, 434, "auto-mail", 28)
 
 local sendBtn = Instance.new("TextButton", content)
-sendBtn.Size = UDim2.new(1,0,0,34); sendBtn.Position = UDim2.new(0,0,0,410)
+sendBtn.Size = UDim2.new(1,0,0,34); sendBtn.Position = UDim2.new(0,0,0,470)
 sendBtn.BackgroundColor3 = C.green; sendBtn.BorderSizePixel = 0
-sendBtn.Text = "📬  GỬI ITEM ĐÃ CHỌN"; sendBtn.TextColor3 = Color3.fromRGB(10,10,10)
+sendBtn.Text = "📬  SEND SELECTED ITEMS"; sendBtn.TextColor3 = Color3.fromRGB(10,10,10)
 sendBtn.TextSize = 13; sendBtn.Font = Enum.Font.GothamBold; corner(8, sendBtn)
 
 local statusLbl = Instance.new("TextLabel", content)
-statusLbl.Size = UDim2.new(1,0,0,32); statusLbl.Position = UDim2.new(0,0,0,448)
-statusLbl.BackgroundTransparency = 1; statusLbl.Text = "● Chọn item rồi nhập số lượng, sau đó gửi"
+statusLbl.Size = UDim2.new(1,0,0,32); statusLbl.Position = UDim2.new(0,0,0,508)
+statusLbl.BackgroundTransparency = 1; statusLbl.Text = "● Select items and quantities, then send"
 statusLbl.TextColor3 = C.muted; statusLbl.TextSize = 10; statusLbl.Font = Enum.Font.Gotham
 statusLbl.TextXAlignment = Enum.TextXAlignment.Left; statusLbl.TextYAlignment = Enum.TextYAlignment.Top
 statusLbl.TextWrapped = true
 
 local divider = Instance.new("Frame", content)
-divider.Size = UDim2.new(1,0,0,1); divider.Position = UDim2.new(0,0,0,484)
+divider.Size = UDim2.new(1,0,0,1); divider.Position = UDim2.new(0,0,0,544)
 divider.BackgroundColor3 = C.border; divider.BorderSizePixel = 0
 
 local claimBtn = Instance.new("TextButton", content)
-claimBtn.Size = UDim2.new(1,0,0,36); claimBtn.Position = UDim2.new(0,0,0,492)
+claimBtn.Size = UDim2.new(1,0,0,36); claimBtn.Position = UDim2.new(0,0,0,552)
 claimBtn.BackgroundColor3 = C.orange; claimBtn.BorderSizePixel = 0
 claimBtn.Text = "📥  CLAIM ALL MAILBOX"; claimBtn.TextColor3 = Color3.fromRGB(10,10,10)
 claimBtn.TextSize = 13; claimBtn.Font = Enum.Font.GothamBold; corner(8, claimBtn)
 
 local claimStatusLbl = Instance.new("TextLabel", content)
-claimStatusLbl.Size = UDim2.new(1,0,0,28); claimStatusLbl.Position = UDim2.new(0,0,0,532)
+claimStatusLbl.Size = UDim2.new(1,0,0,28); claimStatusLbl.Position = UDim2.new(0,0,0,592)
 claimStatusLbl.BackgroundTransparency = 1; claimStatusLbl.Text = ""
 claimStatusLbl.TextColor3 = C.muted; claimStatusLbl.TextSize = 10; claimStatusLbl.Font = Enum.Font.Gotham
 claimStatusLbl.TextXAlignment = Enum.TextXAlignment.Left; claimStatusLbl.TextYAlignment = Enum.TextYAlignment.Top
@@ -667,6 +715,7 @@ claimStatusLbl.TextWrapped = true
 
 local verifiedUserId = nil
 local verifiedUsername = nil
+local verifiedDisplayName = nil
 local isSending = false
 local isClaiming = false
 
@@ -674,38 +723,52 @@ verifyBtn.MouseButton1Click:Connect(function()
     if isSending then return end
     local username = cleanUsername(recipientBox.Text)
     if username == "" then
-        verifyStatus.Text = "❌ Nhập tên người nhận trước!"; verifyStatus.TextColor3 = C.red; return
+        recipientCard.Visible = false
+        verifyStatus.Text = "❌ Please enter a username first!"; verifyStatus.TextColor3 = C.red; return
     end
-    verifyBtn.Text = "⏳  Đang tìm..."; verifyBtn.BackgroundColor3 = Color3.fromRGB(60,30,120)
-    verifyStatus.Text = "Đang xác nhận..."; verifyStatus.TextColor3 = C.yellow
+    verifyBtn.Text = "⏳  Searching..."; verifyBtn.BackgroundColor3 = Color3.fromRGB(60,30,120)
+    verifyStatus.Text = "Verifying..."; verifyStatus.TextColor3 = C.yellow
+    recipientCard.Visible = false
     task.spawn(function()
         local userId, displayName = lookupPlayer(username)
         if userId then
-            verifiedUserId = userId; verifiedUsername = username
-            verifyStatus.Text = "✅ Tìm thấy: @" .. username .. " [" .. tostring(userId) .. "]"
+            verifiedUserId = userId; verifiedUsername = username; verifiedDisplayName = displayName
+
+            -- Fill recipient card: avatar + display name + @username
+            local avatarUrl = getAvatarThumbnail(userId)
+            if avatarUrl then
+                recipientAvatar.Image = avatarUrl
+            end
+            recipientNameLbl.Text = tostring(displayName ~= "" and displayName or username)
+            recipientHandleLbl.Text = "@" .. username .. "  •  ID: " .. tostring(userId)
+            recipientCard.Visible = true
+
+            verifyStatus.Text = "✅ Recipient verified"
             verifyStatus.TextColor3 = C.green
             recipientFrame.BackgroundColor3 = Color3.fromRGB(14,36,22)
             stroke(recipientFrame, C.green, 1)
         else
-            verifiedUserId = nil; verifiedUsername = nil
+            verifiedUserId = nil; verifiedUsername = nil; verifiedDisplayName = nil
+            recipientCard.Visible = false
             verifyStatus.Text = "❌ " .. tostring(displayName)
             verifyStatus.TextColor3 = C.red
             recipientFrame.BackgroundColor3 = C.card
             stroke(recipientFrame, C.red, 1)
         end
-        verifyBtn.Text = "🔍  Xác Nhận Người Nhận"; verifyBtn.BackgroundColor3 = C.accent
+        verifyBtn.Text = "🔍  Verify Recipient"; verifyBtn.BackgroundColor3 = C.accent
     end)
 end)
 
 recipientBox:GetPropertyChangedSignal("Text"):Connect(function()
-    verifiedUserId = nil; verifiedUsername = nil
+    verifiedUserId = nil; verifiedUsername = nil; verifiedDisplayName = nil
     verifyStatus.Text = ""; recipientFrame.BackgroundColor3 = C.card; stroke(recipientFrame, C.border, 1)
+    recipientCard.Visible = false
 end)
 
 sendBtn.MouseButton1Click:Connect(function()
     if isSending or isClaiming then return end
     if not verifiedUserId then
-        statusLbl.Text = "❌ Xác nhận người nhận trước!"; statusLbl.TextColor3 = C.red; return
+        statusLbl.Text = "❌ Please verify the recipient first!"; statusLbl.TextColor3 = C.red; return
     end
 
     local selections = {}
@@ -720,34 +783,50 @@ sendBtn.MouseButton1Click:Connect(function()
     end
 
     if #selections == 0 then
-        statusLbl.Text = "❌ Chưa chọn item nào (tick checkbox + nhập số lượng)!"; statusLbl.TextColor3 = C.red; return
+        statusLbl.Text = "❌ No items selected (check a box and enter a quantity)!"; statusLbl.TextColor3 = C.red; return
     end
 
     local note = noteBox.Text:match("^%s*(.-)%s*$")
     if note == "" then note = "auto-mail" end
 
     isSending = true
-    sendBtn.Text = "⏳  Đang xử lý..."; sendBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    sendBtn.Text = "⏳  Sending..."; sendBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
     statusLbl.TextColor3 = C.yellow
-    statusLbl.Text = "📦 Đang chuẩn bị gửi " .. tostring(#selections) .. " loại item..."
+    statusLbl.Text = "📦 Preparing to send " .. tostring(#selections) .. " item type(s)..."
 
     task.spawn(function()
-        local sent, err = sendSelectedGroups(verifiedUserId, selections, note, function(msg)
+        local sent, err, sentDetails = sendSelectedGroups(verifiedUserId, selections, note, function(msg)
             statusLbl.Text = msg; statusLbl.TextColor3 = C.cyan
         end)
 
+        -- Build a detailed item list for the notification, e.g. "Bamboo x50, Super Sprinkler x1"
+        local detailParts = {}
+        for _, d in ipairs(sentDetails) do
+            table.insert(detailParts, tostring(d.Name) .. " x" .. tostring(d.Qty))
+        end
+        local detailText = table.concat(detailParts, ", ")
+        local recipientLabel = "@" .. tostring(verifiedUsername)
+
         if err then
-            statusLbl.Text = "⚠ Đã gửi " .. sent .. " item | Lỗi: " .. tostring(err)
+            statusLbl.Text = "⚠ Sent " .. sent .. " item(s) | Error: " .. tostring(err)
             statusLbl.TextColor3 = C.yellow
-            notify("AutoMail", "Đã gửi " .. sent .. " item. Lỗi: " .. tostring(err), 6)
+            notify(
+                "AutoMail",
+                "Partially sent to " .. recipientLabel .. ": " .. detailText .. " | Error: " .. tostring(err),
+                7
+            )
         else
-            statusLbl.Text = "✅ Hoàn tất! Đã gửi " .. sent .. " item tới @" .. verifiedUsername
+            statusLbl.Text = "✅ Done! Sent " .. sent .. " item(s) to " .. recipientLabel
             statusLbl.TextColor3 = C.green
-            notify("AutoMail", "✅ Đã gửi " .. sent .. " item tới @" .. verifiedUsername, 5)
+            notify(
+                "AutoMail",
+                "Sent to " .. recipientLabel .. ": " .. detailText,
+                6
+            )
         end
 
         isSending = false
-        sendBtn.Text = "📬  GỬI ITEM ĐÃ CHỌN"; sendBtn.BackgroundColor3 = C.green
+        sendBtn.Text = "📬  SEND SELECTED ITEMS"; sendBtn.BackgroundColor3 = C.green
         refreshList()
     end)
 end)
@@ -755,8 +834,8 @@ end)
 claimBtn.MouseButton1Click:Connect(function()
     if isClaiming or isSending then return end
     isClaiming = true
-    claimBtn.Text = "⏳  Đang claim..."; claimBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    claimStatusLbl.Text = "⏳ Đang claim mail..."; claimStatusLbl.TextColor3 = C.yellow
+    claimBtn.Text = "⏳  Claiming..."; claimBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    claimStatusLbl.Text = "⏳ Claiming mail..."; claimStatusLbl.TextColor3 = C.yellow
     task.spawn(function()
         local claimed, total = autoClaimAll(function(msg)
             claimStatusLbl.Text = msg; claimStatusLbl.TextColor3 = C.yellow
@@ -764,13 +843,13 @@ claimBtn.MouseButton1Click:Connect(function()
         if total == 0 then
             claimStatusLbl.TextColor3 = C.muted
         elseif claimed >= total then
-            claimStatusLbl.Text = "✅ Đã claim all mailbox! (" .. claimed .. "/" .. total .. ")"
+            claimStatusLbl.Text = "✅ Claimed all mailbox gifts! (" .. claimed .. "/" .. total .. ")"
             claimStatusLbl.TextColor3 = C.green
-            notify("AutoClaim", "✅ Đã claim " .. claimed .. "/" .. total .. " mail!", 5)
+            notify("AutoClaim", "Claimed " .. claimed .. "/" .. total .. " mail!", 5)
         else
             claimStatusLbl.Text = "⚠ Claimed " .. claimed .. "/" .. total .. " mail"
             claimStatusLbl.TextColor3 = C.yellow
-            notify("AutoClaim", "⚠ Claimed " .. claimed .. "/" .. total .. " mail", 5)
+            notify("AutoClaim", "Claimed " .. claimed .. "/" .. total .. " mail", 5)
         end
         isClaiming = false
         claimBtn.Text = "📥  CLAIM ALL MAILBOX"; claimBtn.BackgroundColor3 = C.orange
